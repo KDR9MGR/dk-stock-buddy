@@ -3,6 +3,7 @@ import { LoginScreen } from "@/components/LoginScreen";
 import { Dashboard } from "@/components/Dashboard";
 import { AddStock } from "@/components/AddStock";
 import { SearchScreen } from "@/components/SearchScreen";
+import { Bills } from "@/components/Bills";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -56,6 +57,8 @@ const Index = () => {
         return <AddStock />;
       case "search":
         return <SearchScreen />;
+      case "bills":
+        return <Bills />;
       default:
         return <Dashboard />;
     }
@@ -63,18 +66,23 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground p-4 flex justify-between items-center">
-        <h1 className="font-bold text-lg">D.K Mobiles</h1>
-        <button 
-          onClick={() => supabase.auth.signOut()}
-          className="text-sm bg-primary-foreground/20 hover:bg-primary-foreground/30 px-3 py-1 rounded"
-        >
-          Logout
-        </button>
+      <header className="sticky top-0 z-50 bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10 text-primary-foreground">
+        <div className="safe-area-inset-top"></div>
+        <div className="px-4 py-3 flex justify-between items-center">
+          <h1 className="font-semibold text-xl tracking-tight">D.K Mobiles</h1>
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="text-sm font-medium bg-primary-foreground/15 hover:bg-primary-foreground/25 active:bg-primary-foreground/30 px-4 py-2 rounded-full transition-all duration-200 active:scale-95"
+          >
+            Logout
+          </button>
+        </div>
       </header>
       
-      <main className="pb-20">
-        {renderActiveScreen()}
+      <main className="pb-20 pt-2">
+        <div className="px-1">
+          {renderActiveScreen()}
+        </div>
       </main>
       
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />

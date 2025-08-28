@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bills Test - GST Invoice Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        
+        .content {
+            padding: 24px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .product-card {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .product-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+        
+        .summary {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+            font-weight: 700;
+            font-size: 18px;
+            color: #2563eb;
+            border-top: 2px solid #2563eb;
+            padding-top: 15px;
+            margin-top: 10px;
+        }
+        
+        .summary-total {
+            font-size: 18px;
+            font-weight: bold;
+            border-top: 2px solid #d1d5db;
+            padding-top: 8px;
+        }
+        
+        .stamp-area {
+            border: 2px dashed #d1d5db;
+            padding: 15px;
+            text-align: center;
+            background: #f9fafb;
+            margin: 20px 0;
+            border-radius: 8px;
+            width: 200px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 0;
+            margin-right: auto;
+        }
+        
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .separator {
+            height: 2px;
+            background: #e5e7eb;
+            margin: 24px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .product-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 GST Bill Generator</h1>
+            <p>Professional Invoice Creation with WhatsApp Integration</p>
+        </div>
+        
+        <div class="content">
+            <!-- Customer Details -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="customerName">Customer Name</label>
+                    <input type="text" id="customerName" placeholder="Enter customer name">
+                </div>
+                <div class="form-group">
+                    <label for="phoneNumber">Phone Number</label>
+                    <input type="tel" id="phoneNumber" placeholder="Enter phone number">
+                </div>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <!-- Products Section -->
+            <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3>Products</h3>
+                    <button class="btn btn-primary" onclick="addProduct()">➕ Add Product</button>
+                </div>
+                
+                <div id="products-container">
+                    <!-- Products will be added here dynamically -->
+                </div>
+            </div>
+            
+            <div class="separator"></div>
+            
+            <!-- Bill Summary -->
+            <div class="bill-summary">
+                <h3 style="margin-bottom: 15px; color: #1e293b; font-size: 20px;">Bill Summary</h3>
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span id="subtotal">₹0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>GST (18%):</span>
+                    <span id="gst">₹0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>Total Amount:</span>
+                    <span id="total">₹0.00</span>
+                </div>
+            </div>
+            
+            <!-- Stamp Area -->
+            <div class="stamp-area">
+                <p style="margin-bottom: 8px; font-weight: 600;">For: Hari Collection</p>
+                <div style="height: 60px;"></div>
+                <p style="margin-bottom: 4px;">Authorized Signatory</p>
+                <p style="font-size: 12px; color: #6b7280;">(Stamp & Signature)</p>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="actions">
+                <button class="btn btn-primary" onclick="shareToWhatsApp()">📱 Share to WhatsApp</button>
+                <button class="btn btn-outline" onclick="saveAsPDF()">📄 Save as PDF</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let products = [{ id: 1, name: '', quantity: 1, price: 0, discount: 0 }];
+        let productIdCounter = 1;
+        
+        function renderProducts() {
+            const container = document.getElementById('products-container');
+            container.innerHTML = '';
+            
+            products.forEach(product => {
+                const productDiv = document.createElement('div');
+                productDiv.className = 'product-card';
+                productDiv.innerHTML = `
+                    <div class="product-grid">
+                        <div>
+                            <label>Product Name</label>
+                            <input type="text" value="${product.name}" onchange="updateProduct(${product.id}, 'name', this.value)" placeholder="Product name">
+                        </div>
+                        <div>
+                            <label>Quantity</label>
+                            <input type="number" value="${product.quantity}" onchange="updateProduct(${product.id}, 'quantity', parseInt(this.value) || 0)" min="1">
+                        </div>
+                        <div>
+                            <label>Price (₹)</label>
+                            <input type="number" value="${product.price}" onchange="updateProduct(${product.id}, 'price', parseFloat(this.value) || 0)" min="0" step="0.01">
+                        </div>
+                        <div>
+                            <label>Discount (%)</label>
+                            <input type="number" value="${product.discount}" onchange="updateProduct(${product.id}, 'discount', parseFloat(this.value) || 0)" min="0" max="100" step="0.01">
+                        </div>
+                        <button class="btn btn-danger" onclick="removeProduct(${product.id})" ${products.length === 1 ? 'disabled' : ''}>🗑️</button>
+                    </div>
+                `;
+                container.appendChild(productDiv);
+            });
+            
+            calculateTotals();
+        }
+        
+        function addProduct() {
+            productIdCounter++;
+            products.push({ id: productIdCounter, name: '', quantity: 1, price: 0, discount: 0 });
+            renderProducts();
+        }
+        
+        function removeProduct(id) {
+            if (products.length > 1) {
+                products = products.filter(p => p.id !== id);
+                renderProducts();
+            }
+        }
+        
+        function updateProduct(id, field, value) {
+            const product = products.find(p => p.id === id);
+            if (product) {
+                product[field] = value;
+                calculateTotals();
+            }
+        }
+        
+        function calculateAmount(product) {
+            const itemTotal = product.quantity * product.price;
+            const discountAmount = (itemTotal * product.discount) / 100;
+            const afterDiscount = itemTotal - discountAmount;
+            const gstAmount = (afterDiscount * 18) / 100;
+            return afterDiscount + gstAmount;
+        }
+
+        function calculateSubtotal() {
+            return products.reduce((total, product) => {
+                const itemTotal = product.quantity * product.price;
+                const discountAmount = (itemTotal * product.discount) / 100;
+                return total + (itemTotal - discountAmount);
+            }, 0);
+        }
+
+        function calculateTotalGST() {
+            const subtotal = calculateSubtotal();
+            return (subtotal * 18) / 100;
+        }
+
+        function calculateTotal() {
+            return calculateSubtotal() + calculateTotalGST();
+        }
+
+        function calculateTotals() {
+            const subtotal = calculateSubtotal();
+            const gst = calculateTotalGST();
+            const total = calculateTotal();
+            
+            document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+            document.getElementById('gst').textContent = `₹${gst.toFixed(2)}`;
+            document.getElementById('total').textContent = `₹${total.toFixed(2)}`;
+        }
+        
+        function shareToWhatsApp() {
+            const customerName = document.getElementById('customerName').value;
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            
+            if (!customerName || !phoneNumber) {
+                alert('Please fill in customer name and phone number');
+                return;
+            }
+            
+            const subtotal = products.reduce((total, product) => {
+                const productTotal = product.quantity * product.price;
+                const discountAmount = (productTotal * product.discount) / 100;
+                return total + (productTotal - discountAmount);
+            }, 0);
+            
+            const gst = subtotal * 0.18;
+            const total = subtotal + gst;
+            
+            const message = `*GST INVOICE*\n\n*Customer:* ${customerName}\n*Phone:* ${phoneNumber}\n\n*Products:*\n${products.map(product => `• ${product.name} - Qty: ${product.quantity} - ₹${product.price} each`).join('\n')}\n\n*Subtotal:* ₹${subtotal.toFixed(2)}\n*GST (18%):* ₹${gst.toFixed(2)}\n*Total:* ₹${total.toFixed(2)}\n\nThank you for your business!`;
+            
+            const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+        
+        function saveAsPDF() {
+            const customerName = document.getElementById('customerName').value;
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            
+            if (!customerName) {
+                alert('Please fill in customer name');
+                return;
+            }
+            
+            const subtotal = products.reduce((total, product) => {
+                const productTotal = product.quantity * product.price;
+                const discountAmount = (productTotal * product.discount) / 100;
+                return total + (productTotal - discountAmount);
+            }, 0);
+            
+            const gst = subtotal * 0.18;
+            const total = subtotal + gst;
+            
+            const invoiceHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>GST Invoice</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .company-info { background: #f5f5f5; padding: 15px; margin-bottom: 20px; }
+                        .bill-to { margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                        .totals { text-align: right; margin-bottom: 30px; }
+                        .stamp-area { border: 2px dashed #ccc; padding: 40px; text-align: center; margin: 20px 0; }
+                        .footer { margin-top: 30px; text-align: center; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>GST INVOICE</h1>
+                    </div>
+                    
+                    <div class="company-info">
+                        <h3>HARI COLLECTION</h3>
+                        <p>SHOP NO. 2068, 2ND FLOOR, NATHANI HEIGHTS, COMMERCIAL ARCADE, BELLASIS ROAD, MUMBAI- 400 008</p>
+                        <p>Phone: 9967441689 | GSTIN: 27BDMPA9576PIZM | State: Maharashtra</p>
+                    </div>
+                    
+                    <div class="bill-to">
+                        <h4>Bill To:</h4>
+                        <p><strong>Customer:</strong> ${customerName}</p>
+                        <p><strong>Phone:</strong> ${phoneNumber}</p>
+                        <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                                <th>Price/Unit</th>
+                                <th>Discount</th>
+                                <th>GST</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${products.map(product => {
+                                const productTotal = product.quantity * product.price;
+                                const discountAmount = (productTotal * product.discount) / 100;
+                                const afterDiscount = productTotal - discountAmount;
+                                const gstAmount = afterDiscount * 0.18;
+                                const finalAmount = afterDiscount + gstAmount;
+                                return `
+                                    <tr>
+                                        <td>${product.name}</td>
+                                        <td>${product.quantity}</td>
+                                        <td>₹${product.price.toFixed(2)}</td>
+                                        <td>${product.discount}%</td>
+                                        <td>18%</td>
+                                        <td>₹${finalAmount.toFixed(2)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <div class="totals">
+                        <p><strong>Subtotal: ₹${subtotal.toFixed(2)}</strong></p>
+                        <p><strong>GST (18%): ₹${gst.toFixed(2)}</strong></p>
+                        <h3>Total: ₹${total.toFixed(2)}</h3>
+                    </div>
+                    
+                    <div class="stamp-area">
+                        <p><strong>For: Hari Collection</strong></p>
+                        <br><br>
+                        <p>Authorized Signatory</p>
+                        <p>(Stamp & Signature)</p>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Thank you for your business!</p>
+                        <p>This is a computer generated invoice.</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(invoiceHTML);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => {
+                    printWindow.print();
+                }, 250);
+            }
+        }
+        
+        // Initialize
+        renderProducts();
+    </script>
+</body>
+</html>
