@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Share, Phone, Camera, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 type BillProduct = Database['public']['Tables']['bill_products']['Row'];
 
@@ -42,12 +43,15 @@ export const Bills = () => {
     discount: 0
   });
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BillProduct[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [showAddProductForm, setShowAddProductForm] = useState(false);
+  const [scanningStatus, setScanningStatus] = useState('Starting camera...');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const codeReader = useRef<BrowserMultiFormatReader | null>(null);
 
   // Listen for the custom event from header's Add Product button
   useEffect(() => {
@@ -169,6 +173,45 @@ export const Bills = () => {
     setShowSearchResults(false);
   };
 
+  // Handle barcode detection
+  const handleBarcodeDetected = async (result: string) => {
+    setScanningStatus(`Barcode detected: ${result}`);
+    
+    // Search for product by serial number
+    const { data: products, error } = await supabase
+      .from('bill_products')
+      .select('*')
+      .eq('serial_number', result)
+      .limit(1);
+
+    if (error) {
+      console.error('Error searching for product:', error);
+      setScanningStatus('Error searching for product');
+      return;
+    }
+
+    if (products && products.length > 0) {
+      const product = products[0];
+      // Auto-fill the product details
+      setNewProduct(prev => ({
+        ...prev,
+        name: product.product_name,
+        // You can add price and other fields if they exist in your bill_products table
+      }));
+      setScanningStatus(`Product found: ${product.product_name}`);
+      
+      // Close scanner after successful detection
+      setTimeout(() => {
+        stopCamera();
+      }, 2000);
+    } else {
+      setScanningStatus('Product not found in database');
+      setTimeout(() => {
+        setScanningStatus('Scanning for barcode...');
+      }, 2000);
+    }
+  };
+
   // Start camera for serial number scanning
   const startCamera = async () => {
     try {
@@ -178,6 +221,9 @@ export const Bills = () => {
         return;
       }
 
+      setScanningStatus('Starting camera...');
+      setIsScanning(true);
+
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
@@ -185,8 +231,30 @@ export const Bills = () => {
           height: { ideal: 720 }
         } 
       });
+      
       setCameraStream(stream);
-      setIsScanning(true);
+      
+      // Initialize barcode reader
+      if (!codeReader.current) {
+        codeReader.current = new BrowserMultiFormatReader();
+      }
+      
+      setScanningStatus('Camera ready, scanning for barcode...');
+      
+      // Start scanning when video is ready
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current && codeReader.current) {
+            codeReader.current.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
+              if (result) {
+                handleBarcodeDetected(result.getText());
+              }
+              // Don't log every scanning attempt as it's continuous
+            });
+          }
+        };
+      }
     } catch (error) {
       console.error('Error accessing camera:', error);
       let errorMessage = 'Unable to access camera.';
@@ -202,6 +270,7 @@ export const Bills = () => {
       }
       
       alert(errorMessage);
+      setIsScanning(false);
     }
   };
 
@@ -211,7 +280,14 @@ export const Bills = () => {
       cameraStream.getTracks().forEach(track => track.stop());
       setCameraStream(null);
     }
+    
+    // Stop barcode reader
+    if (codeReader.current) {
+      codeReader.current.reset();
+    }
+    
     setIsScanning(false);
+    setScanningStatus('Starting camera...');
   };
 
   // Search by serial number (simulated scan result)
@@ -659,23 +735,17 @@ export const Bills = () => {
                   </Button>
                 </div>
                 <div className="space-y-4">
-                  <div className="bg-gray-100 h-48 flex items-center justify-center rounded overflow-hidden">
-                    {cameraStream ? (
-                      <video
-                        ref={(video) => {
-                          if (video && cameraStream) {
-                            video.srcObject = cameraStream;
-                            video.play();
-                          }
-                        }}
-                        className="w-full h-full object-cover"
-                        autoPlay
-                        playsInline
-                        muted
-                      />
-                    ) : (
-                      <p className="text-gray-500">Starting camera...</p>
-                    )}
+                  <div className="bg-gray-100 h-48 flex items-center justify-center rounded overflow-hidden relative">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      playsInline
+                      muted
+                    />
+                    <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-70 text-white text-sm p-2 rounded">
+                      {scanningStatus}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="manualSerial">Or enter serial number manually:</Label>

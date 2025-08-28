@@ -4,6 +4,7 @@ import { Dashboard } from "@/components/Dashboard";
 import { AddStock } from "@/components/AddStock";
 import { SearchScreen } from "@/components/SearchScreen";
 import { Bills } from "@/components/Bills";
+import { ProductManagement } from "@/components/ProductManagement";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -60,15 +61,15 @@ const Index = () => {
         return <SearchScreen />;
       case "bills":
         return <Bills />;
+      case "product-management":
+        return <ProductManagement onBack={() => setActiveTab("bills")} />;
       default:
         return <Dashboard />;
     }
   };
 
   const handleAddProduct = () => {
-    // This will be handled by the Bills component's add product functionality
-    const event = new CustomEvent('openAddProduct');
-    window.dispatchEvent(event);
+    setActiveTab("product-management");
   };
 
   return (
