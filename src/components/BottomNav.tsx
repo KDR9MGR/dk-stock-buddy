@@ -8,8 +8,8 @@ interface BottomNavProps {
 export const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "add-stock", label: "Add Stock", icon: Plus },
     { id: "search", label: "Search", icon: Search },
+    { id: "add-stock", label: "Add Stock", icon: Plus },
   ];
 
   return (
