@@ -52,6 +52,8 @@ export const Bills = () => {
   const [scanningStatus, setScanningStatus] = useState('Starting camera...');
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReader = useRef<BrowserMultiFormatReader | null>(null);
+  const lastScannedCode = useRef<string | null>(null);
+  const lastScannedTime = useRef<number>(0);
 
   // Listen for the custom event from header's Add Product button
   useEffect(() => {
@@ -175,6 +177,16 @@ export const Bills = () => {
 
   // Handle barcode detection
   const handleBarcodeDetected = async (result: string) => {
+    const currentTime = Date.now();
+    
+    // Prevent duplicate scans within 3 seconds of the same barcode
+    if (lastScannedCode.current === result && (currentTime - lastScannedTime.current) < 3000) {
+      return;
+    }
+    
+    lastScannedCode.current = result;
+    lastScannedTime.current = currentTime;
+    
     setScanningStatus(`Barcode detected: ${result}`);
     
     // Search for product by serial number
@@ -194,13 +206,13 @@ export const Bills = () => {
       const product = products[0];
       
       // Automatically add the scanned product to the bill
-      const newBillProduct: Product = {
-        id: Date.now().toString(),
-        name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ''}`,
-        quantity: 1,
-        price: product.price || 0,
-        discount: 0
-      };
+       const newBillProduct: Product = {
+         id: Date.now().toString(),
+         name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ''}`,
+         quantity: 1,
+         price: (product as any).price || 0,
+         discount: 0
+       };
       
       setBillData(prev => ({
         ...prev,
@@ -294,6 +306,10 @@ export const Bills = () => {
     if (codeReader.current) {
       codeReader.current.reset();
     }
+    
+    // Reset scanning state
+    lastScannedCode.current = null;
+    lastScannedTime.current = 0;
     
     setIsScanning(false);
     setScanningStatus('Starting camera...');
