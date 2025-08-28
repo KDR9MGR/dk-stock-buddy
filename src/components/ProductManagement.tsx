@@ -116,27 +116,52 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onBack }) 
   // Save product to database
   const saveProduct = async () => {
     if (!product.product_name || !product.serial_number) {
-      alert('Please fill in product name and serial number.');
+      toast({
+        title: "Validation Error",
+        description: "Please fill in product name and serial number.",
+        variant: "destructive"
+      });
       return;
     }
 
     setIsSaving(true);
     
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "You must be logged in to save products.",
+          variant: "destructive"
+        });
+        setIsSaving(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('bill_products')
         .insert({
           product_name: product.product_name,
           serial_number: product.serial_number,
           color: product.color,
-          quantity: product.quantity
+          quantity: product.quantity,
+          created_by: user.id
         });
 
       if (error) {
         console.error('Error saving product:', error);
-        alert('Error saving product. Please try again.');
+        toast({
+          title: "Error",
+          description: "Failed to save product. Please try again.",
+          variant: "destructive"
+        });
       } else {
-        alert('Product saved successfully!');
+        toast({
+          title: "Success",
+          description: "Product saved successfully!"
+        });
         // Reset form
         setProduct({
           product_name: '',
@@ -147,7 +172,11 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onBack }) 
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error saving product. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to save product. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsSaving(false);
     }
