@@ -5,9 +5,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { useToast } from "@/hooks/use-toast";
+
+type Product = Tables<'products'>;
+type ProductInsert = TablesInsert<'products'>;
 
 export const AddStock = () => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     brand: "",
     model: "",
@@ -17,63 +24,180 @@ export const AddStock = () => {
     image: null as File | null
   });
 
-  const [existingProduct, setExistingProduct] = useState<any>(null);
+  const [existingProduct, setExistingProduct] = useState<Product | null>(null);
   const [showDuplicateAlert, setShowDuplicateAlert] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
   const brands = ["Apple", "Samsung", "OnePlus", "Xiaomi", "Oppo", "Vivo", "Realme", "Nothing"];
-  const locationTypes = ["Floor", "Bundle", "Rack", "Serial"];
+  const locationTypes = ["floor", "bundle", "rack", "serial"];
 
-  // Mock existing products for duplicate detection
-  const existingProducts = [
-    { brand: "Apple", model: "iPhone 15 Pro", stock: 5 },
-    { brand: "Samsung", model: "Galaxy S24", stock: 8 },
-  ];
-
-  // Check for existing product when model changes
+  // Check for existing product when brand or model changes
   useEffect(() => {
-    if (formData.brand && formData.model) {
-      const existing = existingProducts.find(
-        p => p.brand.toLowerCase() === formData.brand.toLowerCase() && 
-        p.model.toLowerCase() === formData.model.toLowerCase()
-      );
-      if (existing) {
-        setExistingProduct(existing);
-        setShowDuplicateAlert(true);
+    const checkForDuplicate = async () => {
+      if (formData.brand && formData.model) {
+        setIsCheckingDuplicate(true);
+        try {
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .ilike('brand', formData.brand)
+            .ilike('model', formData.model)
+            .single();
+
+          if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+            console.error('Error checking for duplicate:', error);
+            return;
+          }
+
+          if (data) {
+            setExistingProduct(data);
+            setShowDuplicateAlert(true);
+          } else {
+            setExistingProduct(null);
+            setShowDuplicateAlert(false);
+          }
+        } catch (error) {
+          console.error('Error checking for duplicate:', error);
+        } finally {
+          setIsCheckingDuplicate(false);
+        }
       } else {
         setExistingProduct(null);
         setShowDuplicateAlert(false);
       }
-    }
+    };
+
+    const timeoutId = setTimeout(checkForDuplicate, 500); // Debounce the API call
+    return () => clearTimeout(timeoutId);
   }, [formData.brand, formData.model]);
 
-  const handleSubmit = () => {
-    console.log("Adding stock:", formData);
-    // Reset form
-    setFormData({
-      brand: "",
-      model: "",
-      stock: "",
-      locationType: "",
-      locationNumber: "",
-      image: null
-    });
-    setShowDuplicateAlert(false);
-    setExistingProduct(null);
+  const handleSubmit = async () => {
+    if (!formData.brand || !formData.model || !formData.stock || !formData.locationType || !formData.locationNumber) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const productData: ProductInsert = {
+        brand: formData.brand,
+        model: formData.model,
+        stock_quantity: parseInt(formData.stock),
+        location_type: formData.locationType,
+        location_number: formData.locationNumber,
+        image_url: null, // TODO: Handle image upload later
+      };
+
+      const { data, error } = await supabase
+        .from('products')
+        .insert([productData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error inserting product:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add product to inventory. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: `${formData.brand} ${formData.model} has been added to inventory.`,
+      });
+
+      // Reset form
+      setFormData({
+        brand: "",
+        model: "",
+        stock: "",
+        locationType: "",
+        locationNumber: "",
+        image: null
+      });
+      setShowDuplicateAlert(false);
+      setExistingProduct(null);
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleIncreaseExisting = () => {
-    console.log("Increasing stock for existing product:", existingProduct);
-    // Reset form
-    setFormData({
-      brand: "",
-      model: "",
-      stock: "",
-      locationType: "",
-      locationNumber: "",
-      image: null
-    });
-    setShowDuplicateAlert(false);
-    setExistingProduct(null);
+  const handleIncreaseExisting = async () => {
+    if (!existingProduct || !formData.stock) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid stock quantity.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const newStockQuantity = existingProduct.stock_quantity + parseInt(formData.stock);
+      
+      const { data, error } = await supabase
+        .from('products')
+        .update({ 
+          stock_quantity: newStockQuantity,
+          location_type: formData.locationType || existingProduct.location_type,
+          location_number: formData.locationNumber || existingProduct.location_number
+        })
+        .eq('id', existingProduct.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating product:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update product stock. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: `Stock increased! ${existingProduct.brand} ${existingProduct.model} now has ${newStockQuantity} units.`,
+      });
+
+      // Reset form
+      setFormData({
+        brand: "",
+        model: "",
+        stock: "",
+        locationType: "",
+        locationNumber: "",
+        image: null
+      });
+      setShowDuplicateAlert(false);
+      setExistingProduct(null);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -108,25 +232,37 @@ export const AddStock = () => {
             />
           </div>
 
+          {isCheckingDuplicate && (
+            <Alert className="border-blue-200 bg-blue-50">
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                Checking for existing products...
+              </AlertDescription>
+            </Alert>
+          )}
+
           {showDuplicateAlert && existingProduct && (
             <Alert className="border-amber-200 bg-amber-50">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
                 <div className="space-y-2">
-                  <p><strong>{existingProduct.brand} {formData.model}</strong> already exists with {existingProduct.stock} units in stock.</p>
+                  <p><strong>{existingProduct.brand} {existingProduct.model}</strong> already exists with {existingProduct.stock_quantity} units in stock.</p>
+                  <p className="text-sm">Location: {existingProduct.location_type} {existingProduct.location_number}</p>
                   <div className="flex gap-2">
                     <Button 
                       size="sm" 
                       variant="outline" 
                       onClick={handleIncreaseExisting}
+                      disabled={isLoading || !formData.stock}
                       className="text-amber-800 border-amber-300 hover:bg-amber-100"
                     >
-                      Increase Stock
+                      {isLoading ? "Updating..." : "Increase Stock"}
                     </Button>
                     <Button 
                       size="sm" 
                       variant="ghost" 
                       onClick={() => setShowDuplicateAlert(false)}
+                      disabled={isLoading}
                       className="text-amber-800 hover:bg-amber-100"
                     >
                       Add Anyway
@@ -170,8 +306,12 @@ export const AddStock = () => {
             />
           </div>
 
-          <Button onClick={handleSubmit} className="w-full">
-            Add to Inventory
+          <Button 
+            onClick={handleSubmit} 
+            className="w-full" 
+            disabled={isLoading || isCheckingDuplicate}
+          >
+            {isLoading ? "Adding Stock..." : "Add to Inventory"}
           </Button>
         </CardContent>
       </Card>

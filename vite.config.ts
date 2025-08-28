@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8081, // Updated to match current running port
   },
   plugins: [
     react(),
@@ -19,4 +19,24 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // PWA optimizations
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+    // Enable source maps for better debugging
+    sourcemap: true,
+  },
+  // Ensure PWA assets are properly served
+  publicDir: 'public',
 }));
+
+// Add PWA-specific headers for development
+if (process.env.NODE_ENV === 'development') {
+  // This will be handled by the service worker in production
+}
