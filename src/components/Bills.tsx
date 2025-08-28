@@ -66,6 +66,15 @@ export const Bills = () => {
     };
   }, []);
 
+  // Cleanup camera stream on component unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
   const addProduct = () => {
     if (newProduct.name && newProduct.price > 0) {
       const product: Product = {
@@ -163,14 +172,36 @@ export const Bills = () => {
   // Start camera for serial number scanning
   const startCamera = async () => {
     try {
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Camera access is not supported in this browser.');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
       });
       setCameraStream(stream);
       setIsScanning(true);
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please check permissions.');
+      let errorMessage = 'Unable to access camera.';
+      
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Camera access denied. Please allow camera permissions and try again.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = 'No camera found on this device.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Camera is already in use by another application.';
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 
@@ -628,8 +659,23 @@ export const Bills = () => {
                   </Button>
                 </div>
                 <div className="space-y-4">
-                  <div className="bg-gray-100 h-48 flex items-center justify-center rounded">
-                    <p className="text-gray-500">Camera view would appear here</p>
+                  <div className="bg-gray-100 h-48 flex items-center justify-center rounded overflow-hidden">
+                    {cameraStream ? (
+                      <video
+                        ref={(video) => {
+                          if (video && cameraStream) {
+                            video.srcObject = cameraStream;
+                            video.play();
+                          }
+                        }}
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        playsInline
+                        muted
+                      />
+                    ) : (
+                      <p className="text-gray-500">Starting camera...</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="manualSerial">Or enter serial number manually:</Label>
