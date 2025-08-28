@@ -18,7 +18,8 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onBack }) 
     product_name: '',
     serial_number: '',
     color: '',
-    quantity: 1
+    quantity: 1,
+    price: 0
   });
   const [isScanning, setIsScanning] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
@@ -147,6 +148,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onBack }) 
           serial_number: product.serial_number,
           color: product.color,
           quantity: product.quantity,
+          price: product.price,
           created_by: user.id
         });
 
@@ -167,7 +169,8 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onBack }) 
           product_name: '',
           serial_number: '',
           color: '',
-          quantity: 1
+          quantity: 1,
+          price: 0
         });
       }
     } catch (error) {
@@ -253,6 +256,19 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onBack }) 
               min="1"
               value={product.quantity}
               onChange={(e) => setProduct(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="price">Price</Label>
+            <Input
+              id="price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={product.price}
+              onChange={(e) => setProduct(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+              placeholder="Enter product price"
             />
           </div>
 

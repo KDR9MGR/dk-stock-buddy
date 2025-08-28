@@ -192,13 +192,22 @@ export const Bills = () => {
 
     if (products && products.length > 0) {
       const product = products[0];
-      // Auto-fill the product details
-      setNewProduct(prev => ({
+      
+      // Automatically add the scanned product to the bill
+      const newBillProduct: Product = {
+        id: Date.now().toString(),
+        name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ''}`,
+        quantity: 1,
+        price: product.price || 0,
+        discount: 0
+      };
+      
+      setBillData(prev => ({
         ...prev,
-        name: product.product_name,
-        // You can add price and other fields if they exist in your bill_products table
+        products: [...prev.products, newBillProduct]
       }));
-      setScanningStatus(`Product found: ${product.product_name}`);
+      
+      setScanningStatus(`Product added to bill: ${product.product_name}`);
       
       // Close scanner after successful detection
       setTimeout(() => {
