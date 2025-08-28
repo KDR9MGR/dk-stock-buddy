@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      bill_products: {
+        Row: {
+          id: string
+          product_name: string
+          serial_number: string
+          color: string | null
+          quantity: number
+          created_at: string
+          updated_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          product_name: string
+          serial_number: string
+          color?: string | null
+          quantity?: number
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          product_name?: string
+          serial_number?: string
+          color?: string | null
+          quantity?: number
+          created_at?: string
+          updated_at?: string
+          created_by?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           brand: string

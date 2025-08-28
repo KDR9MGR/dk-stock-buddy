@@ -362,27 +362,37 @@
         }
         
         function shareToWhatsApp() {
-            const customerName = document.getElementById('customerName').value;
-            const phoneNumber = document.getElementById('phoneNumber').value;
-            
-            if (!customerName || !phoneNumber) {
-                alert('Please fill in customer name and phone number');
+            const customerPhone = document.getElementById('customerPhone').value;
+            if (!customerPhone) {
+                alert('Please enter customer phone number');
                 return;
             }
             
-            const subtotal = products.reduce((total, product) => {
-                const productTotal = product.quantity * product.price;
-                const discountAmount = (productTotal * product.discount) / 100;
-                return total + (productTotal - discountAmount);
-            }, 0);
+            const formatChoice = confirm("Choose sharing format:\n\nOK = Send as Text Message\nCancel = Generate PDF and send link");
+            const phoneNumber = customerPhone.replace(/[^0-9]/g, '');
             
-            const gst = subtotal * 0.18;
-            const total = subtotal + gst;
-            
-            const message = `*GST INVOICE*\n\n*Customer:* ${customerName}\n*Phone:* ${phoneNumber}\n\n*Products:*\n${products.map(product => `• ${product.name} - Qty: ${product.quantity} - ₹${product.price} each`).join('\n')}\n\n*Subtotal:* ₹${subtotal.toFixed(2)}\n*GST (18%):* ₹${gst.toFixed(2)}\n*Total:* ₹${total.toFixed(2)}\n\nThank you for your business!`;
-            
-            const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
+            if (formatChoice) {
+                // Send as text message
+                const message = generateWhatsAppMessage();
+                const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+            } else {
+                // Generate PDF and send with message
+                saveAsPDF();
+                const pdfMessage = 
+                    `🧾 *Tax Invoice - DK Collection*\n\n` +
+                    `📋 Customer: ${document.getElementById('customerName').value}\n` +
+                    `📞 Phone: ${customerPhone}\n` +
+                    `💰 Total Amount: ₹${calculateTotal().toFixed(2)}\n\n` +
+                    `📄 Please find your detailed invoice in the PDF that was just generated.\n\n` +
+                    `🏪 *DK COLLECTION*\n` +
+                    `📍 Shop No. 2068, 2nd Floor, Nathani Heights,\nCommercial Arcade, Bellasis Road, Mumbai-400008\n` +
+                    `📞 9967441689\n` +
+                    `🆔 GSTIN: 27BDMPA9576PIZM\n\n` +
+                    `Thank you for your business! 🙏`;
+                const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(pdfMessage)}`;
+                window.open(whatsappUrl, '_blank');
+            }
         }
         
         function saveAsPDF() {

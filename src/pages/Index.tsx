@@ -7,6 +7,7 @@ import { Bills } from "@/components/Bills";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { Plus } from "lucide-react";
 
 const Index = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -64,18 +65,34 @@ const Index = () => {
     }
   };
 
+  const handleAddProduct = () => {
+    // This will be handled by the Bills component's add product functionality
+    const event = new CustomEvent('openAddProduct');
+    window.dispatchEvent(event);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10 text-primary-foreground">
         <div className="safe-area-inset-top"></div>
         <div className="px-4 py-3 flex justify-between items-center">
           <h1 className="font-semibold text-xl tracking-tight">D.K Mobiles</h1>
-          <button 
-            onClick={() => supabase.auth.signOut()}
-            className="text-sm font-medium bg-primary-foreground/15 hover:bg-primary-foreground/25 active:bg-primary-foreground/30 px-4 py-2 rounded-full transition-all duration-200 active:scale-95"
-          >
-            Logout
-          </button>
+          {activeTab === "bills" ? (
+            <button 
+              onClick={handleAddProduct}
+              className="text-sm font-medium bg-primary-foreground/15 hover:bg-primary-foreground/25 active:bg-primary-foreground/30 px-3 py-2 rounded-full transition-all duration-200 active:scale-95 flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Add Product
+            </button>
+          ) : (
+            <button 
+              onClick={() => supabase.auth.signOut()}
+              className="text-sm font-medium bg-primary-foreground/15 hover:bg-primary-foreground/25 active:bg-primary-foreground/30 px-4 py-2 rounded-full transition-all duration-200 active:scale-95"
+            >
+              Logout
+            </button>
+          )}
         </div>
       </header>
       

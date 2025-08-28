@@ -1,10 +1,14 @@
-import React, { useState } from "react";
-import { Plus, Trash2, Share, Phone } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, Share, Phone, Camera, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type BillProduct = Database['public']['Tables']['bill_products']['Row'];
 
 interface Product {
   id: string;
@@ -37,6 +41,30 @@ export const Bills = () => {
     price: 0,
     discount: 0
   });
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<BillProduct[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [showAddProductForm, setShowAddProductForm] = useState(false);
+
+  // Listen for the custom event from header's Add Product button
+  useEffect(() => {
+    const handleOpenAddProduct = () => {
+      setShowAddProductForm(true);
+      // Scroll to the add product section
+      const addProductSection = document.getElementById('add-product-section');
+      if (addProductSection) {
+        addProductSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+
+    window.addEventListener('openAddProduct', handleOpenAddProduct);
+    return () => {
+      window.removeEventListener('openAddProduct', handleOpenAddProduct);
+    };
+  }, []);
 
   const addProduct = () => {
     if (newProduct.name && newProduct.price > 0) {
@@ -82,6 +110,99 @@ export const Bills = () => {
 
   const calculateTotal = () => {
     return calculateSubtotal() + calculateTotalGST();
+  };
+
+  // Search products in bill_products table
+  const searchProducts = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('bill_products')
+        .select('*')
+        .or(`product_name.ilike.%${query}%,serial_number.ilike.%${query}%,color.ilike.%${query}%`)
+        .limit(10);
+
+      if (error) {
+        console.error('Error searching products:', error);
+        return;
+      }
+
+      setSearchResults(data || []);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error('Error searching products:', error);
+    }
+  };
+
+  // Handle search input change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchProducts(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Select product from search results
+  const selectProduct = (product: BillProduct) => {
+    setNewProduct({
+      name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ''}`,
+      quantity: 1,
+      price: 0,
+      discount: 0
+    });
+    setSearchQuery('');
+    setShowSearchResults(false);
+  };
+
+  // Start camera for serial number scanning
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      setCameraStream(stream);
+      setIsScanning(true);
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      alert('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  // Stop camera
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setIsScanning(false);
+  };
+
+  // Search by serial number (simulated scan result)
+  const searchBySerialNumber = async (serialNumber: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('bill_products')
+        .select('*')
+        .eq('serial_number', serialNumber)
+        .single();
+
+      if (error || !data) {
+        alert('Product not found with this serial number');
+        return;
+      }
+
+      selectProduct(data);
+      stopCamera();
+    } catch (error) {
+      console.error('Error searching by serial number:', error);
+      alert('Error searching for product');
+    }
   };
 
   const generateWhatsAppMessage = () => {
@@ -445,18 +566,108 @@ export const Bills = () => {
       </Card>
 
       {/* Add Product */}
-      <Card>
+      <Card id="add-product-section">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Add Product</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Product Search */}
+          <div className="relative">
+            <Label htmlFor="productSearch">Search Product</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  id="productSearch"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by product name, serial number, or color"
+                  className="pl-10"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={startCamera}
+                disabled={isScanning}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                {isScanning ? 'Scanning...' : 'Scan'}
+              </Button>
+            </div>
+            
+            {/* Search Results Dropdown */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                {searchResults.map((product) => (
+                  <div
+                    key={product.id}
+                    className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                    onClick={() => selectProduct(product)}
+                  >
+                    <div className="font-medium">{product.product_name}</div>
+                    <div className="text-sm text-gray-600">
+                      Serial: {product.serial_number}
+                      {product.color && ` • Color: ${product.color}`}
+                      • Qty: {product.quantity}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Camera Modal */}
+          {isScanning && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Scan Serial Number</h3>
+                  <Button variant="outline" onClick={stopCamera}>
+                    Close
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  <div className="bg-gray-100 h-48 flex items-center justify-center rounded">
+                    <p className="text-gray-500">Camera view would appear here</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="manualSerial">Or enter serial number manually:</Label>
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        id="manualSerial"
+                        placeholder="Enter serial number"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            const target = e.target as HTMLInputElement;
+                            searchBySerialNumber(target.value);
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={(e) => {
+                          const input = (e.target as HTMLElement).parentElement?.querySelector('input') as HTMLInputElement;
+                          if (input?.value) {
+                            searchBySerialNumber(input.value);
+                          }
+                        }}
+                      >
+                        Search
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="productName">Product Name</Label>
             <Input
               id="productName"
               value={newProduct.name}
               onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter product name"
+              placeholder="Enter product name or select from search"
             />
           </div>
           <div className="grid grid-cols-3 gap-2">
