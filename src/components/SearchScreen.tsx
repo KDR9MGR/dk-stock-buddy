@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Minus, Plus } from "lucide-react";
+import { Search, Minus, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
@@ -41,7 +41,9 @@ export const SearchScreen = () => {
         .or(`brand.ilike.%${query}%,model.ilike.%${query}%`)
         .order('brand', { ascending: true })
         .order('model', { ascending: true })
-        .limit(50); // Limit results for better performance
+        .order('location_type', { ascending: true })
+        .order('location_number', { ascending: true })
+        .limit(100); // Increased limit to show more instances
 
       // Check if request was aborted
       if (abortControllerRef.current?.signal.aborted) {
@@ -155,6 +157,25 @@ export const SearchScreen = () => {
     }
   };
 
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (error) {
+        console.error('Error deleting product:', error);
+        return;
+      }
+
+      // Remove the deleted product from search results
+      setSearchResults(prev => prev.filter(product => product.id !== productId));
+    } catch (error) {
+      console.error('Error deleting product:', error);
+    }
+  };
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold text-foreground mb-4">Search Inventory</h1>
@@ -172,6 +193,11 @@ export const SearchScreen = () => {
         {isLoading && (
           <p className="text-sm text-muted-foreground mt-2">Searching...</p>
         )}
+        {searchResults.length > 0 && (
+          <p className="text-sm text-muted-foreground mt-2">
+            Found {searchResults.length} result(s). Multiple locations for the same model will be shown separately.
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -180,12 +206,14 @@ export const SearchScreen = () => {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <h3 className="font-semibold">{product.brand} {product.model}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Location: {product.location_type} • {product.location_number}
-                  </p>
-                  <p className="text-sm font-medium mt-1">
-                    Stock: <span className={product.stock_quantity < 5 ? "text-destructive" : "text-foreground"}>{product.stock_quantity}</span>
+                  <h3 className="font-semibold text-lg">{product.brand} {product.model}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      📍 {product.location_type.charAt(0).toUpperCase() + product.location_type.slice(1)} {product.location_number}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium mt-2">
+                    Stock: <span className={product.stock_quantity < 5 ? "text-destructive font-bold" : "text-green-600 font-semibold"}>{product.stock_quantity} units</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
@@ -205,6 +233,16 @@ export const SearchScreen = () => {
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
+                  {product.stock_quantity === 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteProduct(product.id)}
+                      className="ml-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>

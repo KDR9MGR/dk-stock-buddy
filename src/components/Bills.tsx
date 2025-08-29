@@ -384,14 +384,288 @@ export const Bills = () => {
       return;
     }
     
-    const message = generateWhatsAppMessage();
+    const formatChoice = confirm("Choose sharing format:\n\nOK = Send as Text Message\nCancel = Generate PDF and send link");
     const phoneNumber = billData.customerPhone.replace(/[^0-9]/g, '');
-    const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${message}`;
-    window.open(whatsappUrl, '_blank');
+    
+    if (formatChoice) {
+      // Send as text message
+      const message = generateWhatsAppMessage();
+      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${message}`;
+      window.open(whatsappUrl, '_blank');
+    } else {
+      // Generate PDF and send with message
+      saveAsSimplePDF();
+      const pdfMessage = 
+        `🧾 *Tax Invoice - HARI COLLECTION*\n\n` +
+        `📋 Customer: ${billData.customerName}\n` +
+        `📞 Phone: ${billData.customerPhone}\n` +
+        `💰 Total Amount: ₹${calculateTotal().toFixed(2)}\n\n` +
+        `📄 Please find your detailed invoice in the PDF that was just generated.\n\n` +
+        `🏪 *HARI COLLECTION*\n` +
+        `📍 Shop No. 2068, 2nd Floor, Nathani Heights,\nCommercial Arcade, Bellasis Road, Mumbai-400008\n` +
+        `📞 9967441689\n` +
+        `🆔 GSTIN: 27BDMPA9576PIZM\n\n` +
+        `Thank you for your business! 🙏`;
+      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(pdfMessage)}`;
+      window.open(whatsappUrl, '_blank');
+    }
+  };
+
+  const saveAsSimplePDF = () => {
+    // Create a new window with simple invoice content for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Tax Invoice</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #fff;
+            color: #000;
+            line-height: 1.4;
+          }
+          .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #000;
+          }
+          .header { 
+            text-align: center; 
+            padding: 15px;
+            margin: 0;
+            border-bottom: 1px solid #000;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+          }
+          .content {
+            padding: 20px;
+          }
+          .company-details { 
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #000;
+          }
+          .company-details h2 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+            font-weight: bold;
+          }
+          .company-details p {
+            margin: 5px 0;
+          }
+          .bill-details { 
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #000;
+          }
+          .bill-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: bold;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+          }
+          .bill-section p {
+            margin: 5px 0;
+            font-size: 12px;
+          }
+          .products-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px;
+            border: 1px solid #000;
+          }
+          .products-table th { 
+            background: #fff;
+            color: #000;
+            padding: 10px 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11px;
+            border: 1px solid #000;
+          }
+          .products-table td { 
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px;
+          }
+          .summary-section {
+            padding: 15px;
+            border: 1px solid #000;
+            margin-bottom: 20px;
+          }
+          .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #000;
+          }
+          .summary-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 2px solid #000;
+            padding-top: 10px;
+            margin-top: 10px;
+          }
+          .footer-section {
+            display: grid;
+            grid-template-columns: 1fr 170px;
+            gap: 20px;
+            align-items: end;
+          }
+          .stamp-area { 
+            width: 150px;
+            height: 80px;
+            border: 1px dashed #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            text-align: center;
+          }
+          .signature-area {
+            text-align: center;
+            margin-top: 15px;
+          }
+          .signature-area p {
+            margin: 5px 0;
+            font-size: 11px;
+          }
+          .company-footer {
+            text-align: left;
+          }
+          .company-footer h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: bold;
+          }
+          @media print {
+            body { margin: 0; padding: 10px; }
+            .invoice-container { border: 1px solid #000; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-container">
+          <div class="header">
+            <h1>TAX INVOICE</h1>
+          </div>
+          
+          <div class="content">
+            <div class="company-details">
+              <h2>HARI COLLECTION</h2>
+              <p><strong>SHOP NO. 2068, 2ND FLOOR, NATHANI HEIGHTS,<br>COMMERCIAL ARCADE, BELLASIS ROAD, MUMBAI-400008</strong></p>
+              <p><strong>Phone:</strong> 9967441689 | <strong>GSTIN:</strong> 27BDMPA9576PIZM | <strong>State:</strong> Maharashtra</p>
+            </div>
+            
+            <div class="bill-details">
+              <div class="bill-section">
+                <h3>Bill To</h3>
+                <p><strong>Customer:</strong> ${billData.customerName}</p>
+                <p><strong>Phone:</strong> ${billData.customerPhone}</p>
+              </div>
+              <div class="bill-section">
+                <h3>Invoice Details</h3>
+                <p><strong>Invoice No:</strong> ${billData.invoiceNo}</p>
+                <p><strong>Date:</strong> ${billData.date}</p>
+              </div>
+            </div>
+            
+            <table class="products-table">
+              <thead>
+                <tr>
+                  <th style="width: 5%">#</th>
+                  <th style="width: 35%">Item Name</th>
+                  <th style="width: 10%">Qty</th>
+                  <th style="width: 15%">Price/Unit</th>
+                  <th style="width: 10%">Discount</th>
+                  <th style="width: 10%">GST</th>
+                  <th style="width: 15%">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${billData.products.map((product, index) => {
+                  const itemTotal = product.quantity * product.price;
+                  const discountAmount = (itemTotal * product.discount) / 100;
+                  const afterDiscount = itemTotal - discountAmount;
+                  const gstAmount = (afterDiscount * 18) / 100;
+                  const finalAmount = afterDiscount + gstAmount;
+                  return `
+                    <tr>
+                      <td>${index + 1}</td>
+                      <td style="text-align: left; padding-left: 15px;">${product.name}</td>
+                      <td>${product.quantity}</td>
+                      <td>₹${product.price.toFixed(2)}</td>
+                      <td>${product.discount}%</td>
+                      <td>18%</td>
+                      <td><strong>₹${finalAmount.toFixed(2)}</strong></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+            
+            <div class="summary-section">
+              <div class="summary-row">
+                <span>Subtotal (Before GST):</span>
+                <span>₹${calculateSubtotal().toFixed(2)}</span>
+              </div>
+              <div class="summary-row">
+                <span>GST (18%):</span>
+                <span>₹${calculateTotalGST().toFixed(2)}</span>
+              </div>
+              <div class="summary-row">
+                <span>Total Amount:</span>
+                <span>₹${calculateTotal().toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div class="footer-section">
+              <div class="company-footer">
+                <h4>For: Hari Collection</h4>
+                <p style="margin-top: 20px;">Thank you for your business!</p>
+              </div>
+              <div>
+                <div class="stamp-area">
+                  Company Seal/Stamp
+                </div>
+                <div class="signature-area">
+                  <p style="border-top: 1px solid #000; padding-top: 10px; margin-top: 15px;">Authorized Signatory</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    printWindow.document.write(invoiceHTML);
+    printWindow.document.close();
+    
+    // Wait for content to load then trigger print
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   const saveAsPDF = () => {
-    // Create a new window with the invoice content for printing
+    // Keep the original colorful PDF function
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
