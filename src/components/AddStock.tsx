@@ -29,7 +29,7 @@ export const AddStock = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
-  const brands = ["Apple", "Samsung", "OnePlus", "Xiaomi", "Oppo", "Vivo", "Realme", "Nothing"];
+  const brands = ["Apple", "Samsung", "OnePlus", "Xiaomi", "Oppo", "Vivo", "Realme", "Nothing", "Motorola", "Infinix", "Google Pixel"];
   const locationTypes = ["floor", "bundle", "rack", "serial"];
 
   // Check for existing product when brand or model changes

@@ -37,7 +37,7 @@ export const SearchScreen = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, brand, model, stock_quantity, location_type, location_number, created_at')
+        .select('*')
         .or(`brand.ilike.%${query}%,model.ilike.%${query}%`)
         .order('brand', { ascending: true })
         .order('model', { ascending: true })
