@@ -12,6 +12,8 @@ interface DashboardStats {
   lowStockCount: number;
   uniqueBrands: number;
   uniqueLocations: number;
+  bundleACount: number;
+  bundleBCount: number;
 }
 
 interface DashboardProps {
@@ -24,8 +26,11 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
     lowStockCount: 0,
     uniqueBrands: 0,
     uniqueLocations: 0,
+    bundleACount: 0,
+    bundleBCount: 0,
   });
   const [recentProducts, setRecentProducts] = useState<Product[]>([]);
+  const [brandDistribution, setBrandDistribution] = useState<{ brand: string; count: number; percentage: number; color: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,12 +57,55 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
         const uniqueBrands = new Set(products.map(p => p.brand)).size;
         const uniqueLocations = new Set(products.map(p => `${p.location_type}-${p.location_number}`)).size;
 
+        // Count Bundle A products (location_type = "bundle" and location_number starts with A or A-)
+        const bundleACount = products.filter(p => {
+          if (p.location_type !== 'bundle') return false;
+          const locationNumber = p.location_number.toUpperCase();
+          return /^A-?\d+$/.test(locationNumber);
+        }).length;
+
+        // Count Bundle B products (location_type = "bundle" and location_number starts with B or B-)
+        const bundleBCount = products.filter(p => {
+          if (p.location_type !== 'bundle') return false;
+          const locationNumber = p.location_number.toUpperCase();
+          return /^B-?\d+$/.test(locationNumber);
+        }).length;
+
         setStats({
           totalProducts,
           lowStockCount,
           uniqueBrands,
           uniqueLocations,
+          bundleACount,
+          bundleBCount,
         });
+
+        // Calculate brand distribution
+        const brandCounts: { [key: string]: number } = {};
+        products.forEach(p => {
+          brandCounts[p.brand] = (brandCounts[p.brand] || 0) + p.stock_quantity;
+        });
+
+        const brandColors = [
+          '#3b82f6', // blue
+          '#10b981', // green
+          '#f59e0b', // amber
+          '#ef4444', // red
+          '#8b5cf6', // violet
+          '#ec4899', // pink
+          '#06b6d4', // cyan
+        ];
+
+        const brandDistData = Object.entries(brandCounts)
+          .map(([brand, count], index) => ({
+            brand,
+            count,
+            percentage: Math.round((count / totalProducts) * 100),
+            color: brandColors[index % brandColors.length],
+          }))
+          .sort((a, b) => b.count - a.count);
+
+        setBrandDistribution(brandDistData);
 
         // Set recent products (last 5)
         setRecentProducts(products.slice(0, 5));
@@ -153,7 +201,80 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
             <div className="text-2xl font-bold">{stats.uniqueLocations}</div>
           </CardContent>
         </Card>
+
+        <Card className="border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-blue-700 dark:text-blue-400">Bundle A</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{stats.bundleACount}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-green-500/50 bg-green-50/50 dark:bg-green-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-green-700 dark:text-green-400">Bundle B</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-700 dark:text-green-400">{stats.bundleBCount}</div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Brand Distribution Circular Bars */}
+      {brandDistribution.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Brand Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-6 py-4">
+              {brandDistribution.map((brand) => (
+                <div key={brand.brand} className="flex flex-col items-center gap-2">
+                  <div className="relative w-24 h-24">
+                    {/* Background Circle */}
+                    <svg className="w-24 h-24 transform -rotate-90">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="none"
+                        className="text-gray-200 dark:text-gray-700"
+                      />
+                      {/* Progress Circle */}
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke={brand.color}
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 40}`}
+                        strokeDashoffset={`${2 * Math.PI * 40 * (1 - brand.percentage / 100)}`}
+                        strokeLinecap="round"
+                        className="transition-all duration-1000 ease-out"
+                      />
+                    </svg>
+                    {/* Center Content */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-lg font-bold" style={{ color: brand.color }}>
+                        {brand.percentage}%
+                      </span>
+                    </div>
+                  </div>
+                  {/* Brand Name and Quantity */}
+                  <div className="text-center">
+                    <p className="font-semibold text-sm">{brand.brand}</p>
+                    <p className="text-xs text-muted-foreground">{brand.count} units</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

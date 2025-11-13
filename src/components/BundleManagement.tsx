@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Package, Minus, Plus, Trash2, Edit2, X, Check } from "lucide-react";
+import { Package, Minus, Plus, Trash2, Edit2, X, Check, MapPin } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -43,6 +43,7 @@ export const BundleManagement = () => {
   const [editingName, setEditingName] = useState({ brand: "", model: "" });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [showMultiLocation, setShowMultiLocation] = useState(false);
   const { toast } = useToast();
 
   // Fetch all bundle products
@@ -94,6 +95,21 @@ export const BundleManagement = () => {
     return Array.from(prefixes).sort();
   };
 
+  // Natural sort function for bundle numbers
+  const naturalSort = (a: string, b: string) => {
+    // Extract the numeric part from the bundle number
+    const aMatch = a.match(/(\d+)/);
+    const bMatch = b.match(/(\d+)/);
+
+    if (aMatch && bMatch) {
+      const aNum = parseInt(aMatch[1]);
+      const bNum = parseInt(bMatch[1]);
+      return aNum - bNum;
+    }
+
+    return a.localeCompare(b);
+  };
+
   // Get unique bundle numbers for selected prefix
   const getBundleNumbers = (prefix: string) => {
     const bundleNumbers = new Set<string>();
@@ -112,7 +128,7 @@ export const BundleManagement = () => {
         }
       }
     });
-    return Array.from(bundleNumbers).sort();
+    return Array.from(bundleNumbers).sort(naturalSort);
   };
 
   // Filter products based on selected filter and bundle
@@ -301,9 +317,35 @@ export const BundleManagement = () => {
     return grouped;
   };
 
+  // Get products with multiple locations
+  const getMultiLocationProducts = () => {
+    const productMap: { [key: string]: Product[] } = {};
+
+    // Group by brand + model
+    products.forEach((product) => {
+      const key = `${product.brand}|${product.model}`;
+      if (!productMap[key]) {
+        productMap[key] = [];
+      }
+      productMap[key].push(product);
+    });
+
+    // Filter only products with multiple locations
+    const multiLocationProducts: { [key: string]: Product[] } = {};
+    Object.entries(productMap).forEach(([key, prods]) => {
+      if (prods.length > 1) {
+        multiLocationProducts[key] = prods;
+      }
+    });
+
+    return multiLocationProducts;
+  };
+
   const bundlePrefixes = getBundlePrefixes();
   const bundleNumbers = selectedFilter !== "all" ? getBundleNumbers(selectedFilter) : [];
   const groupedProducts = getGroupedProducts();
+  const multiLocationProducts = getMultiLocationProducts();
+  const multiLocationCount = Object.keys(multiLocationProducts).length;
 
   return (
     <div className="p-4 pb-20 space-y-4">
@@ -316,6 +358,112 @@ export const BundleManagement = () => {
         </div>
         <Package className="w-8 h-8 text-primary" />
       </div>
+
+      {/* Multi-Location Products Alert */}
+      {multiLocationCount > 0 && (
+        <Card className="border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+              <MapPin className="w-5 h-5" />
+              Products in Multiple Locations
+              <Badge variant="secondary">{multiLocationCount}</Badge>
+            </CardTitle>
+            <CardDescription>
+              These products have entries in different bundle locations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant={showMultiLocation ? "default" : "outline"}
+              onClick={() => setShowMultiLocation(!showMultiLocation)}
+              size="sm"
+            >
+              {showMultiLocation ? "Hide" : "Show"} Multi-Location Products
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Multi-Location Products List */}
+      {showMultiLocation && multiLocationCount > 0 && (
+        <div className="space-y-3">
+          {Object.entries(multiLocationProducts).map(([key, prods]) => {
+            const [brand, model] = key.split("|");
+            const totalQuantity = prods.reduce((sum, p) => sum + p.stock_quantity, 0);
+            return (
+              <Card key={key} className="border-orange-500/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center justify-between">
+                    <span>
+                      {brand} - {model}
+                    </span>
+                    <Badge variant="secondary">
+                      Total: {totalQuantity} units in {prods.length} locations
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {prods.map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center justify-between p-2 bg-background rounded border"
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            Bundle {product.location_number.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">Qty: {product.stock_quantity}</Badge>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => startEditing(product)}
+                            className="h-7 w-7"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() =>
+                              updateQuantity(product.id, product.stock_quantity - 1)
+                            }
+                            disabled={product.stock_quantity === 0}
+                            className="h-7 w-7"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() =>
+                              updateQuantity(product.id, product.stock_quantity + 1)
+                            }
+                            className="h-7 w-7"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            onClick={() => handleDeleteClick(product)}
+                            className="h-7 w-7"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Filter Buttons */}
       <Card>
@@ -395,15 +543,17 @@ export const BundleManagement = () => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {Object.entries(groupedProducts).map(([bundle, bundleProducts]) => (
-            <Card key={bundle}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Bundle {bundle}
-                  <Badge variant="secondary">{bundleProducts.length} products</Badge>
-                </CardTitle>
-              </CardHeader>
+          {Object.entries(groupedProducts)
+            .sort(([a], [b]) => naturalSort(a, b))
+            .map(([bundle, bundleProducts]) => (
+              <Card key={bundle}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Bundle {bundle}
+                    <Badge variant="secondary">{bundleProducts.length} products</Badge>
+                  </CardTitle>
+                </CardHeader>
               <CardContent className="space-y-3">
                 {bundleProducts.map((product) => (
                   <div
@@ -508,8 +658,8 @@ export const BundleManagement = () => {
                   </div>
                 ))}
               </CardContent>
-            </Card>
-          ))}
+              </Card>
+            ))}
         </div>
       )}
 
