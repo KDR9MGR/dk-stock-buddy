@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
+import { Package } from "lucide-react";
 
 type Product = Tables<'products'>;
 
@@ -12,7 +14,11 @@ interface DashboardStats {
   uniqueLocations: number;
 }
 
-export const Dashboard = () => {
+interface DashboardProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     lowStockCount: 0,
@@ -96,8 +102,21 @@ export const Dashboard = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-      
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        {onNavigate && (
+          <Button
+            onClick={() => onNavigate("bundle-management")}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Package className="w-4 h-4" />
+            Bundles
+          </Button>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">

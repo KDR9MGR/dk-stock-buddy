@@ -5,6 +5,7 @@ import { AddStock } from "@/components/AddStock";
 import { SearchScreen } from "@/components/SearchScreen";
 import { Bills } from "@/components/Bills";
 import { ProductManagement } from "@/components/ProductManagement";
+import { BundleManagement } from "@/components/BundleManagement";
 import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -54,7 +55,7 @@ const Index = () => {
   const renderActiveScreen = () => {
     switch (activeTab) {
       case "dashboard":
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActiveTab} />;
       case "add-stock":
         return <AddStock />;
       case "search":
@@ -63,8 +64,10 @@ const Index = () => {
         return <Bills />;
       case "product-management":
         return <ProductManagement onBack={() => setActiveTab("bills")} />;
+      case "bundle-management":
+        return <BundleManagement />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActiveTab} />;
     }
   };
 
