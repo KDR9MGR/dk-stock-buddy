@@ -210,7 +210,7 @@ export const Bills = () => {
          id: Date.now().toString(),
          name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ''}`,
          quantity: 1,
-         price: (product as any).price || 0,
+         price: 0,
          discount: 0
        };
       

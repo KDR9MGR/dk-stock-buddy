@@ -1,5 +1,7 @@
 # Welcome to your Lovable project
 
+Deployment check: 2026-05-25.
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/6a6b91ff-ea89-4962-a31e-f6d66a2c2a1d

@@ -168,7 +168,7 @@ export const BundleManagement = () => {
   };
 
   // Handle bundle selection
-  const handleBundleSelect = (bundle: string) => {
+  const handleBundleSelect = (bundle: string | null) => {
     setSelectedBundle(bundle);
     filterProducts(products, selectedFilter, bundle);
   };
@@ -507,7 +507,7 @@ export const BundleManagement = () => {
             <div className="flex flex-wrap gap-2">
               <Button
                 variant={selectedBundle === null ? "default" : "outline"}
-                onClick={() => handleBundleSelect(null as any)}
+                onClick={() => handleBundleSelect(null)}
                 size="sm"
               >
                 All {selectedFilter} Bundles
