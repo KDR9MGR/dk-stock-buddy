@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/library";
-import { Camera, FileText, Loader2, Phone, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { Camera, FileText, Loader2, Phone, Plus, Trash2, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,11 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import { createInvoicePdfFile, downloadInvoicePdf } from "@/lib/invoicePdf";
-
-type BillProduct = Database["public"]["Tables"]["bill_products"]["Row"];
-type BillProductWithPrice = BillProduct & { price?: number | null };
 
 interface Product {
   id: string;
@@ -91,18 +86,7 @@ export const Bills = () => {
   const [extractionProgress, setExtractionProgress] = useState(0);
   const [extractionStatus, setExtractionStatus] = useState("");
   const [shareWithCustomerDirectly, setShareWithCustomerDirectly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<BillProductWithPrice[]>([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [scanningStatus, setScanningStatus] = useState("Starting camera...");
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const manualSerialRef = useRef<HTMLInputElement>(null);
-  const codeReader = useRef<BrowserMultiFormatReader | null>(null);
-  const lastScannedCode = useRef<string | null>(null);
-  const lastScannedTime = useRef(0);
   const productPhotosRef = useRef<ProductPhoto[]>([]);
 
   useEffect(() => {
@@ -120,14 +104,7 @@ export const Bills = () => {
 
   useEffect(() => {
     return () => {
-      cameraStream?.getTracks().forEach((track) => track.stop());
-    };
-  }, [cameraStream]);
-
-  useEffect(() => {
-    return () => {
       productPhotosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
-      codeReader.current?.reset();
     };
   }, []);
 
@@ -150,32 +127,6 @@ export const Bills = () => {
 
     return () => window.clearInterval(intervalId);
   }, [isExtractingDetails]);
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(async () => {
-      if (!searchQuery.trim()) {
-        setSearchResults([]);
-        setShowSearchResults(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("bill_products")
-        .select("*")
-        .or(`product_name.ilike.%${searchQuery}%,serial_number.ilike.%${searchQuery}%,color.ilike.%${searchQuery}%`)
-        .limit(10);
-
-      if (error) {
-        console.error("Error searching products:", error);
-        return;
-      }
-
-      setSearchResults(data || []);
-      setShowSearchResults(true);
-    }, 300);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [searchQuery]);
 
   const calculateAmount = (product: Product) => {
     const itemTotal = product.quantity * product.price;
@@ -280,20 +231,6 @@ export const Bills = () => {
     });
   };
 
-  const selectProduct = (product: BillProductWithPrice) => {
-    setNewProduct({
-      name: product.product_name,
-      model: product.product_name,
-      serialNumber: product.serial_number,
-      color: product.color || "",
-      quantity: 1,
-      price: product.price ?? 0,
-      discount: 0,
-    });
-    setSearchQuery("");
-    setShowSearchResults(false);
-  };
-
   const addProduct = () => {
     if (!newProduct.name || newProduct.price <= 0) return;
 
@@ -315,119 +252,6 @@ export const Bills = () => {
       ...prev,
       products: prev.products.filter((product) => product.id !== id),
     }));
-  };
-
-  const stopCamera = () => {
-    cameraStream?.getTracks().forEach((track) => track.stop());
-    setCameraStream(null);
-    codeReader.current?.reset();
-    lastScannedCode.current = null;
-    lastScannedTime.current = 0;
-    setIsScanning(false);
-    setScanningStatus("Starting camera...");
-  };
-
-  const handleBarcodeDetected = async (result: string) => {
-    const currentTime = Date.now();
-    if (lastScannedCode.current === result && currentTime - lastScannedTime.current < 3000) return;
-
-    lastScannedCode.current = result;
-    lastScannedTime.current = currentTime;
-    setScanningStatus(`Barcode detected: ${result}`);
-
-    const { data, error } = await supabase
-      .from("bill_products")
-      .select("*")
-      .eq("serial_number", result)
-      .limit(1);
-
-    if (error) {
-      console.error("Error searching for product:", error);
-      setScanningStatus("Error searching for product");
-      return;
-    }
-
-    const product = data?.[0] as BillProductWithPrice | undefined;
-    if (!product) {
-      setScanningStatus("Product not found in database");
-      window.setTimeout(() => setScanningStatus("Scanning for barcode..."), 2000);
-      return;
-    }
-
-    setBillData((prev) => ({
-      ...prev,
-      products: [
-        ...prev.products,
-        {
-          id: createId(),
-          name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ""}`,
-          model: product.product_name,
-          serialNumber: product.serial_number,
-          color: product.color || "",
-          quantity: 1,
-          price: product.price ?? 0,
-          discount: 0,
-        },
-      ],
-    }));
-    setScanningStatus(`Product added: ${product.product_name}`);
-    window.setTimeout(stopCamera, 1500);
-  };
-
-  const startCamera = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      alert("Camera access is not supported in this browser.");
-      return;
-    }
-
-    try {
-      setScanningStatus("Starting camera...");
-      setIsScanning(true);
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
-
-      setCameraStream(stream);
-      codeReader.current ??= new BrowserMultiFormatReader();
-      setScanningStatus("Camera ready, scanning for barcode...");
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          if (!videoRef.current || !codeReader.current) return;
-          codeReader.current.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-            if (result) handleBarcodeDetected(result.getText());
-          });
-        };
-      }
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      setIsScanning(false);
-      alert("Unable to access camera. Please allow camera permissions and try again.");
-    }
-  };
-
-  const searchBySerialNumber = async (serialNumber: string) => {
-    if (!serialNumber.trim()) return;
-
-    const { data, error } = await supabase
-      .from("bill_products")
-      .select("*")
-      .eq("serial_number", serialNumber.trim())
-      .single();
-
-    if (error || !data) {
-      alert("Product not found with this serial number");
-      return;
-    }
-
-    selectProduct(data as BillProductWithPrice);
-    stopCamera();
   };
 
   const getInvoicePdfData = () => ({
@@ -580,7 +404,7 @@ export const Bills = () => {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label htmlFor="customerName">2. Customer Name</Label>
+            <Label htmlFor="customerName">Customer Name</Label>
             <Input
               id="customerName"
               value={billData.customerName}
@@ -589,7 +413,7 @@ export const Bills = () => {
             />
           </div>
           <div>
-            <Label htmlFor="customerPhone">3. Phone Number</Label>
+            <Label htmlFor="customerPhone">Phone Number</Label>
             <Input
               id="customerPhone"
               value={billData.customerPhone}
@@ -599,20 +423,25 @@ export const Bills = () => {
             />
           </div>
           <div>
-            <Label htmlFor="invoiceDate">Invoice Date</Label>
+            <Label htmlFor="quantity">Qty</Label>
             <Input
-              id="invoiceDate"
-              type="date"
-              value={billData.date}
-              onChange={(e) => setBillData((prev) => ({ ...prev, date: e.target.value }))}
+              id="quantity"
+              type="number"
+              value={newProduct.quantity}
+              onChange={(e) => setNewProduct((prev) => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+              min="1"
             />
           </div>
           <div>
-            <Label htmlFor="invoiceNo">Invoice Number</Label>
+            <Label htmlFor="price">Price</Label>
             <Input
-              id="invoiceNo"
-              value={billData.invoiceNo}
-              onChange={(e) => setBillData((prev) => ({ ...prev, invoiceNo: e.target.value }))}
+              id="price"
+              type="number"
+              value={newProduct.price === 0 ? "" : newProduct.price}
+              onChange={(e) => setNewProduct((prev) => ({ ...prev, price: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0 }))}
+              min="0"
+              step="0.01"
+              placeholder="0.00"
             />
           </div>
         </CardContent>
@@ -620,73 +449,9 @@ export const Bills = () => {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">4. Quantity & Price</CardTitle>
+          <CardTitle className="text-base font-semibold">Product Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/20 p-3">
-            <div>
-              <Label htmlFor="quantity">Qty</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={newProduct.quantity}
-                onChange={(e) => setNewProduct((prev) => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                min="1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="price">Price</Label>
-              <Input
-                id="price"
-                type="number"
-                value={newProduct.price === 0 ? "" : newProduct.price}
-                onChange={(e) => setNewProduct((prev) => ({ ...prev, price: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0 }))}
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-
-          <div className="relative">
-            <Label htmlFor="productSearch">Search or Scan</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="productSearch"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Name, serial number, or color"
-                  className="pl-9"
-                />
-              </div>
-              <Button type="button" variant="outline" onClick={startCamera} disabled={isScanning}>
-                <Camera className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">{isScanning ? "Scanning" : "Scan"}</span>
-              </Button>
-            </div>
-
-            {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-background shadow-lg">
-                {searchResults.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    className="block w-full border-b p-3 text-left last:border-b-0 hover:bg-muted"
-                    onClick={() => selectProduct(product)}
-                  >
-                    <span className="block font-medium">{product.product_name}</span>
-                    <span className="text-sm text-muted-foreground">
-                      Serial: {product.serial_number}
-                      {product.color && ` | Color: ${product.color}`} | Qty: {product.quantity}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="productName">Product Name</Label>
@@ -726,49 +491,37 @@ export const Bills = () => {
             </div>
           </div>
 
-          <Button onClick={addProduct} className="w-full" disabled={!newProduct.name || newProduct.price <= 0}>
+          <Button onClick={addProduct} className="h-12 w-full text-base font-semibold" disabled={!newProduct.name || newProduct.price <= 0}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Product
+            Add product to invoice
           </Button>
         </CardContent>
       </Card>
 
-      {isScanning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-md bg-background p-4 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-semibold">Scan Serial Number</h3>
-              <Button variant="outline" size="sm" onClick={stopCamera}>
-                Close
-              </Button>
-            </div>
-            <div className="space-y-4">
-              <div className="relative h-52 overflow-hidden rounded-md bg-muted">
-                <video ref={videoRef} className="h-full w-full object-cover" autoPlay playsInline muted />
-                <div className="absolute bottom-2 left-2 right-2 rounded bg-black/70 p-2 text-sm text-white">{scanningStatus}</div>
-              </div>
-              <div>
-                <Label htmlFor="manualSerial">Enter serial number manually</Label>
-                <div className="mt-2 flex gap-2">
-                  <Input
-                    id="manualSerial"
-                    ref={manualSerialRef}
-                    placeholder="Serial number"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        searchBySerialNumber((e.target as HTMLInputElement).value);
-                      }
-                    }}
-                  />
-                  <Button type="button" onClick={() => searchBySerialNumber(manualSerialRef.current?.value || "")}>
-                    Search
-                  </Button>
-                </div>
-              </div>
-            </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Invoice Info</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="invoiceDate">Invoice Date</Label>
+            <Input
+              id="invoiceDate"
+              type="date"
+              value={billData.date}
+              onChange={(e) => setBillData((prev) => ({ ...prev, date: e.target.value }))}
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <Label htmlFor="invoiceNo">Invoice Number</Label>
+            <Input
+              id="invoiceNo"
+              value={billData.invoiceNo}
+              onChange={(e) => setBillData((prev) => ({ ...prev, invoiceNo: e.target.value }))}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {billData.products.length > 0 && (
         <Card>
