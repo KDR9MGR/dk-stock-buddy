@@ -1,23 +1,32 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, Share, Phone, Camera, Search } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { BrowserMultiFormatReader } from "@zxing/library";
+import { Camera, FileText, Loader2, Phone, Plus, Search, Trash2, Upload, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { createInvoicePdfFile, downloadInvoicePdf } from "@/lib/invoicePdf";
 
-type BillProduct = Database['public']['Tables']['bill_products']['Row'];
+type BillProduct = Database["public"]["Tables"]["bill_products"]["Row"];
+type BillProductWithPrice = BillProduct & { price?: number | null };
 
 interface Product {
   id: string;
   name: string;
+  model?: string;
+  serialNumber?: string;
+  color?: string;
   quantity: number;
   price: number;
   discount: number;
 }
+
+type NewProduct = Omit<Product, "id">;
 
 interface BillData {
   customerName: string;
@@ -27,934 +36,479 @@ interface BillData {
   date: string;
 }
 
+interface ProductPhoto {
+  id: string;
+  file: File;
+  previewUrl: string;
+}
+
+interface ExtractedProductDetails {
+  productName: string;
+  model: string;
+  serialNumber: string;
+  color: string;
+  price: number | null;
+}
+
+const createEmptyProduct = (): NewProduct => ({
+  name: "",
+  model: "",
+  serialNumber: "",
+  color: "",
+  quantity: 1,
+  price: 0,
+  discount: 0,
+});
+
+const createId = () => {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 export const Bills = () => {
   const [billData, setBillData] = useState<BillData>({
     customerName: "",
     customerPhone: "",
     products: [],
     invoiceNo: `INV${Date.now().toString().slice(-4)}`,
-    date: new Date().toLocaleDateString('en-GB')
+    date: new Date().toISOString().slice(0, 10),
   });
-
-  const [newProduct, setNewProduct] = useState({
-    name: "",
-    quantity: 1,
-    price: 0,
-    discount: 0
-  });
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<BillProduct[]>([]);
+  const [newProduct, setNewProduct] = useState<NewProduct>(createEmptyProduct);
+  const [productPhotos, setProductPhotos] = useState<ProductPhoto[]>([]);
+  const [isExtractingDetails, setIsExtractingDetails] = useState(false);
+  const [extractionStatus, setExtractionStatus] = useState("");
+  const [shareWithCustomerDirectly, setShareWithCustomerDirectly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<BillProductWithPrice[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [showAddProductForm, setShowAddProductForm] = useState(false);
-  const [scanningStatus, setScanningStatus] = useState('Starting camera...');
+  const [scanningStatus, setScanningStatus] = useState("Starting camera...");
+
   const videoRef = useRef<HTMLVideoElement>(null);
+  const manualSerialRef = useRef<HTMLInputElement>(null);
   const codeReader = useRef<BrowserMultiFormatReader | null>(null);
   const lastScannedCode = useRef<string | null>(null);
-  const lastScannedTime = useRef<number>(0);
+  const lastScannedTime = useRef(0);
+  const productPhotosRef = useRef<ProductPhoto[]>([]);
 
-  // Listen for the custom event from header's Add Product button
   useEffect(() => {
     const handleOpenAddProduct = () => {
-      setShowAddProductForm(true);
-      // Scroll to the add product section
-      const addProductSection = document.getElementById('add-product-section');
-      if (addProductSection) {
-        addProductSection.scrollIntoView({ behavior: 'smooth' });
-      }
+      document.getElementById("add-product-section")?.scrollIntoView({ behavior: "smooth" });
     };
 
-    window.addEventListener('openAddProduct', handleOpenAddProduct);
-    return () => {
-      window.removeEventListener('openAddProduct', handleOpenAddProduct);
-    };
+    window.addEventListener("openAddProduct", handleOpenAddProduct);
+    return () => window.removeEventListener("openAddProduct", handleOpenAddProduct);
   }, []);
 
-  // Cleanup camera stream on component unmount
+  useEffect(() => {
+    productPhotosRef.current = productPhotos;
+  }, [productPhotos]);
+
   useEffect(() => {
     return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-      }
+      cameraStream?.getTracks().forEach((track) => track.stop());
     };
   }, [cameraStream]);
 
-  const addProduct = () => {
-    if (newProduct.name && newProduct.price > 0) {
-      const product: Product = {
-        id: Date.now().toString(),
-        ...newProduct
-      };
-      setBillData(prev => ({
-        ...prev,
-        products: [...prev.products, product]
-      }));
-      setNewProduct({ name: "", quantity: 1, price: 0, discount: 0 });
-    }
-  };
+  useEffect(() => {
+    return () => {
+      productPhotosRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+      codeReader.current?.reset();
+    };
+  }, []);
 
-  const removeProduct = (id: string) => {
-    setBillData(prev => ({
-      ...prev,
-      products: prev.products.filter(p => p.id !== id)
-    }));
-  };
+  useEffect(() => {
+    const timeoutId = window.setTimeout(async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        return;
+      }
 
-  const calculateAmount = (product: Product) => {
-    const itemTotal = product.quantity * product.price;
-    const discountAmount = (itemTotal * product.discount) / 100;
-    const afterDiscount = itemTotal - discountAmount;
-    const gstAmount = (afterDiscount * 18) / 100;
-    return afterDiscount + gstAmount;
-  };
-
-  const calculateSubtotal = () => {
-    return billData.products.reduce((total, product) => {
-      const itemTotal = product.quantity * product.price;
-      const discountAmount = (itemTotal * product.discount) / 100;
-      return total + (itemTotal - discountAmount);
-    }, 0);
-  };
-
-  const calculateTotalGST = () => {
-    const subtotal = calculateSubtotal();
-    return (subtotal * 18) / 100;
-  };
-
-  const calculateTotal = () => {
-    return calculateSubtotal() + calculateTotalGST();
-  };
-
-  // Search products in bill_products table
-  const searchProducts = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    try {
       const { data, error } = await supabase
-        .from('bill_products')
-        .select('*')
-        .or(`product_name.ilike.%${query}%,serial_number.ilike.%${query}%,color.ilike.%${query}%`)
+        .from("bill_products")
+        .select("*")
+        .or(`product_name.ilike.%${searchQuery}%,serial_number.ilike.%${searchQuery}%,color.ilike.%${searchQuery}%`)
         .limit(10);
 
       if (error) {
-        console.error('Error searching products:', error);
+        console.error("Error searching products:", error);
         return;
       }
 
       setSearchResults(data || []);
       setShowSearchResults(true);
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const calculateAmount = (product: Product) => {
+    const itemTotal = product.quantity * product.price;
+    const discountAmount = (itemTotal * product.discount) / 100;
+    const afterDiscount = itemTotal - discountAmount;
+    return afterDiscount + (afterDiscount * 18) / 100;
+  };
+
+  const calculateSubtotal = () =>
+    billData.products.reduce((total, product) => total + product.quantity * product.price - (product.quantity * product.price * product.discount) / 100, 0);
+
+  const calculateTotalGST = () => (calculateSubtotal() * 18) / 100;
+
+  const calculateTotal = () => calculateSubtotal() + calculateTotalGST();
+
+  const buildProductName = (product: NewProduct) => {
+    const baseName = product.name || product.model || "Product";
+    const details = [
+      product.model && product.model !== baseName ? product.model : "",
+      product.serialNumber ? `Serial: ${product.serialNumber}` : "",
+      product.color || "",
+    ].filter(Boolean);
+
+    return details.length > 0 ? `${baseName} - ${details.join(" - ")}` : baseName;
+  };
+
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+
+  const applyExtractedDetails = (details: ExtractedProductDetails) => {
+    setNewProduct((prev) => ({
+      ...prev,
+      name: details.productName || prev.name,
+      model: details.model || prev.model,
+      serialNumber: details.serialNumber || prev.serialNumber,
+      color: details.color || prev.color,
+      price: typeof details.price === "number" && details.price > 0 ? details.price : prev.price,
+    }));
+  };
+
+  const extractDetailsFromPhotos = async (photos: ProductPhoto[]) => {
+    if (photos.length === 0) return;
+
+    setIsExtractingDetails(true);
+    setExtractionStatus("Reading product details from photo...");
+
+    try {
+      const images = await Promise.all(photos.map((photo) => fileToDataUrl(photo.file)));
+      const { data, error } = await supabase.functions.invoke<ExtractedProductDetails>("extract-product-details", {
+        body: { images },
+      });
+
+      if (error) throw error;
+      if (!data) throw new Error("No product details returned");
+
+      applyExtractedDetails(data);
+      setExtractionStatus("Product details filled from photo.");
     } catch (error) {
-      console.error('Error searching products:', error);
+      console.error("Error extracting product details:", error);
+      setExtractionStatus("Could not read the photo. Fill the details manually or try another photo.");
+    } finally {
+      setIsExtractingDetails(false);
     }
   };
 
-  // Handle search input change
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      searchProducts(searchQuery);
-    }, 300);
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+    event.target.value = "";
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+    if (selectedFiles.length === 0) return;
 
-  // Select product from search results
-  const selectProduct = (product: BillProduct) => {
-    setNewProduct({
-      name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ''}`,
-      quantity: 1,
-      price: 0,
-      discount: 0
+    const availableSlots = Math.max(0, 2 - productPhotos.length);
+    const acceptedFiles = selectedFiles.slice(0, availableSlots);
+
+    if (acceptedFiles.length < selectedFiles.length) {
+      setExtractionStatus("Only two product photos can be uploaded.");
+    }
+
+    const nextPhotos = [
+      ...productPhotos,
+      ...acceptedFiles.map((file) => ({
+        id: `${file.name}-${file.lastModified}-${createId()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      })),
+    ];
+
+    setProductPhotos(nextPhotos);
+    await extractDetailsFromPhotos(nextPhotos);
+  };
+
+  const removeProductPhoto = (id: string) => {
+    setProductPhotos((prev) => {
+      const photo = prev.find((item) => item.id === id);
+      if (photo) URL.revokeObjectURL(photo.previewUrl);
+      return prev.filter((item) => item.id !== id);
     });
-    setSearchQuery('');
+  };
+
+  const selectProduct = (product: BillProductWithPrice) => {
+    setNewProduct({
+      name: product.product_name,
+      model: product.product_name,
+      serialNumber: product.serial_number,
+      color: product.color || "",
+      quantity: 1,
+      price: product.price ?? 0,
+      discount: 0,
+    });
+    setSearchQuery("");
     setShowSearchResults(false);
   };
 
-  // Handle barcode detection
+  const addProduct = () => {
+    if (!newProduct.name || newProduct.price <= 0) return;
+
+    const product: Product = {
+      id: createId(),
+      ...newProduct,
+      name: buildProductName(newProduct),
+    };
+
+    setBillData((prev) => ({
+      ...prev,
+      products: [...prev.products, product],
+    }));
+    setNewProduct(createEmptyProduct());
+  };
+
+  const removeProduct = (id: string) => {
+    setBillData((prev) => ({
+      ...prev,
+      products: prev.products.filter((product) => product.id !== id),
+    }));
+  };
+
+  const stopCamera = () => {
+    cameraStream?.getTracks().forEach((track) => track.stop());
+    setCameraStream(null);
+    codeReader.current?.reset();
+    lastScannedCode.current = null;
+    lastScannedTime.current = 0;
+    setIsScanning(false);
+    setScanningStatus("Starting camera...");
+  };
+
   const handleBarcodeDetected = async (result: string) => {
     const currentTime = Date.now();
-    
-    // Prevent duplicate scans within 3 seconds of the same barcode
-    if (lastScannedCode.current === result && (currentTime - lastScannedTime.current) < 3000) {
-      return;
-    }
-    
+    if (lastScannedCode.current === result && currentTime - lastScannedTime.current < 3000) return;
+
     lastScannedCode.current = result;
     lastScannedTime.current = currentTime;
-    
     setScanningStatus(`Barcode detected: ${result}`);
-    
-    // Search for product by serial number
-    const { data: products, error } = await supabase
-      .from('bill_products')
-      .select('*')
-      .eq('serial_number', result)
+
+    const { data, error } = await supabase
+      .from("bill_products")
+      .select("*")
+      .eq("serial_number", result)
       .limit(1);
 
     if (error) {
-      console.error('Error searching for product:', error);
-      setScanningStatus('Error searching for product');
+      console.error("Error searching for product:", error);
+      setScanningStatus("Error searching for product");
       return;
     }
 
-    if (products && products.length > 0) {
-      const product = products[0];
-      
-      // Automatically add the scanned product to the bill
-       const newBillProduct: Product = {
-         id: Date.now().toString(),
-         name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ''}`,
-         quantity: 1,
-         price: 0,
-         discount: 0
-       };
-      
-      setBillData(prev => ({
-        ...prev,
-        products: [...prev.products, newBillProduct]
-      }));
-      
-      setScanningStatus(`Product added to bill: ${product.product_name}`);
-      
-      // Close scanner after successful detection
-      setTimeout(() => {
-        stopCamera();
-      }, 2000);
-    } else {
-      setScanningStatus('Product not found in database');
-      setTimeout(() => {
-        setScanningStatus('Scanning for barcode...');
-      }, 2000);
+    const product = data?.[0] as BillProductWithPrice | undefined;
+    if (!product) {
+      setScanningStatus("Product not found in database");
+      window.setTimeout(() => setScanningStatus("Scanning for barcode..."), 2000);
+      return;
     }
+
+    setBillData((prev) => ({
+      ...prev,
+      products: [
+        ...prev.products,
+        {
+          id: createId(),
+          name: `${product.product_name} - ${product.serial_number}${product.color ? ` (${product.color})` : ""}`,
+          model: product.product_name,
+          serialNumber: product.serial_number,
+          color: product.color || "",
+          quantity: 1,
+          price: product.price ?? 0,
+          discount: 0,
+        },
+      ],
+    }));
+    setScanningStatus(`Product added: ${product.product_name}`);
+    window.setTimeout(stopCamera, 1500);
   };
 
-  // Start camera for serial number scanning
   const startCamera = async () => {
-    try {
-      // Check if getUserMedia is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert('Camera access is not supported in this browser.');
-        return;
-      }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert("Camera access is not supported in this browser.");
+      return;
+    }
 
-      setScanningStatus('Starting camera...');
+    try {
+      setScanningStatus("Starting camera...");
       setIsScanning(true);
 
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment',
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment",
           width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
+          height: { ideal: 720 },
+        },
       });
-      
+
       setCameraStream(stream);
-      
-      // Initialize barcode reader
-      if (!codeReader.current) {
-        codeReader.current = new BrowserMultiFormatReader();
-      }
-      
-      setScanningStatus('Camera ready, scanning for barcode...');
-      
-      // Start scanning when video is ready
+      codeReader.current ??= new BrowserMultiFormatReader();
+      setScanningStatus("Camera ready, scanning for barcode...");
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current && codeReader.current) {
-            codeReader.current.decodeFromVideoDevice(undefined, videoRef.current, (result, error) => {
-              if (result) {
-                handleBarcodeDetected(result.getText());
-              }
-              // Don't log every scanning attempt as it's continuous
-            });
-          }
+          if (!videoRef.current || !codeReader.current) return;
+          codeReader.current.decodeFromVideoDevice(undefined, videoRef.current, (result) => {
+            if (result) handleBarcodeDetected(result.getText());
+          });
         };
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
-      let errorMessage = 'Unable to access camera.';
-      
-      if (error instanceof Error) {
-        if (error.name === 'NotAllowedError') {
-          errorMessage = 'Camera access denied. Please allow camera permissions and try again.';
-        } else if (error.name === 'NotFoundError') {
-          errorMessage = 'No camera found on this device.';
-        } else if (error.name === 'NotReadableError') {
-          errorMessage = 'Camera is already in use by another application.';
-        }
-      }
-      
-      alert(errorMessage);
+      console.error("Error accessing camera:", error);
       setIsScanning(false);
+      alert("Unable to access camera. Please allow camera permissions and try again.");
     }
   };
 
-  // Stop camera
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
-    }
-    
-    // Stop barcode reader
-    if (codeReader.current) {
-      codeReader.current.reset();
-    }
-    
-    // Reset scanning state
-    lastScannedCode.current = null;
-    lastScannedTime.current = 0;
-    
-    setIsScanning(false);
-    setScanningStatus('Starting camera...');
-  };
-
-  // Search by serial number (simulated scan result)
   const searchBySerialNumber = async (serialNumber: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('bill_products')
-        .select('*')
-        .eq('serial_number', serialNumber)
-        .single();
+    if (!serialNumber.trim()) return;
 
-      if (error || !data) {
-        alert('Product not found with this serial number');
-        return;
-      }
+    const { data, error } = await supabase
+      .from("bill_products")
+      .select("*")
+      .eq("serial_number", serialNumber.trim())
+      .single();
 
-      selectProduct(data);
-      stopCamera();
-    } catch (error) {
-      console.error('Error searching by serial number:', error);
-      alert('Error searching for product');
+    if (error || !data) {
+      alert("Product not found with this serial number");
+      return;
     }
+
+    selectProduct(data as BillProductWithPrice);
+    stopCamera();
   };
 
-  const generateWhatsAppMessage = () => {
-    let message = `🧾 *TAX INVOICE - HARI COLLECTION*\n\n`;
-    message += `📋 *Invoice Details:*\n`;
-    message += `Invoice No: ${billData.invoiceNo}\n`;
-    message += `Date: ${billData.date}\n\n`;
-    
-    message += `👤 *Customer Details:*\n`;
-    message += `Name: ${billData.customerName}\n`;
-    message += `Phone: ${billData.customerPhone}\n\n`;
-    
-    message += `🛍️ *Items:*\n`;
-    billData.products.forEach((product, index) => {
-      const itemTotal = product.quantity * product.price;
-      const discountAmount = (itemTotal * product.discount) / 100;
-      const afterDiscount = itemTotal - discountAmount;
-      const gstAmount = (afterDiscount * 18) / 100;
-      const finalAmount = afterDiscount + gstAmount;
-      
-      message += `${index + 1}. ${product.name}\n`;
-      message += `   Qty: ${product.quantity} × ₹${product.price}`;
-      if (product.discount > 0) {
-        message += ` (${product.discount}% off)`;
-      }
-      message += ` + 18% GST\n`;
-      message += `   Amount: ₹${finalAmount.toFixed(2)}\n\n`;
-    });
-    
-    message += `💰 *Bill Summary:*\n`;
-    message += `Subtotal (Before GST): ₹${calculateSubtotal().toFixed(2)}\n`;
-    message += `GST (18%): ₹${calculateTotalGST().toFixed(2)}\n`;
-    message += `*Total Amount: ₹${calculateTotal().toFixed(2)}*\n\n`;
-    
-    message += `🏪 *HARI COLLECTION*\n`;
-    message += `📍 Shop No. 2068, 2nd Floor, Nathani Heights,\nCommercial Arcade, Bellasis Road, Mumbai-400008\n`;
-    message += `📞 9967441689\n`;
-    message += `🆔 GSTIN: 27BDMPA9576PIZM\n\n`;
-    message += `Thank you for your business! 🙏`;
-    
-    return encodeURIComponent(message);
-  };
+  const getInvoicePdfData = () => ({
+    customerName: billData.customerName,
+    customerPhone: billData.customerPhone,
+    invoiceNo: billData.invoiceNo,
+    date: billData.date,
+    products: billData.products,
+    subtotal: calculateSubtotal(),
+    gst: calculateTotalGST(),
+    total: calculateTotal(),
+  });
 
-  const shareToWhatsApp = () => {
-    if (!billData.customerPhone) {
+  const getInvoiceShareText = () =>
+    `Tax Invoice - HARI COLLECTION\nInvoice No: ${billData.invoiceNo}\nCustomer: ${billData.customerName}\nTotal: Rs. ${calculateTotal().toFixed(2)}`;
+
+  const shareToWhatsApp = async () => {
+    if (shareWithCustomerDirectly && !billData.customerPhone) {
       alert("Please enter customer phone number");
       return;
     }
-    
-    const formatChoice = confirm("Choose sharing format:\n\nOK = Send as Text Message\nCancel = Generate PDF and send link");
-    const phoneNumber = billData.customerPhone.replace(/[^0-9]/g, '');
-    
-    if (formatChoice) {
-      // Send as text message
-      const message = generateWhatsAppMessage();
-      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${message}`;
-      window.open(whatsappUrl, '_blank');
-    } else {
-      // Generate PDF and send with message
-      saveAsSimplePDF();
-      const pdfMessage = 
-        `🧾 *Tax Invoice - HARI COLLECTION*\n\n` +
-        `📋 Customer: ${billData.customerName}\n` +
-        `📞 Phone: ${billData.customerPhone}\n` +
-        `💰 Total Amount: ₹${calculateTotal().toFixed(2)}\n\n` +
-        `📄 Please find your detailed invoice in the PDF that was just generated.\n\n` +
-        `🏪 *HARI COLLECTION*\n` +
-        `📍 Shop No. 2068, 2nd Floor, Nathani Heights,\nCommercial Arcade, Bellasis Road, Mumbai-400008\n` +
-        `📞 9967441689\n` +
-        `🆔 GSTIN: 27BDMPA9576PIZM\n\n` +
-        `Thank you for your business! 🙏`;
-      const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(pdfMessage)}`;
-      window.open(whatsappUrl, '_blank');
+
+    const pdfFile = createInvoicePdfFile(getInvoicePdfData());
+    const phoneNumber = billData.customerPhone.replace(/[^0-9]/g, "");
+    const shareText = getInvoiceShareText();
+
+    try {
+      if (navigator.canShare?.({ files: [pdfFile] })) {
+        await navigator.share({
+          title: `Invoice ${billData.invoiceNo}`,
+          text: shareText,
+          files: [pdfFile],
+        });
+      } else {
+        downloadInvoicePdf(getInvoicePdfData());
+        alert("PDF downloaded. Attach it in WhatsApp to share the invoice.");
+      }
+
+      if (shareWithCustomerDirectly && phoneNumber) {
+        window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(shareText)}`, "_blank");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.error("Error sharing invoice PDF:", error);
+      downloadInvoicePdf(getInvoicePdfData());
+      alert("Sharing was not available, so the invoice PDF was downloaded.");
     }
   };
 
-  const saveAsSimplePDF = () => {
-    // Create a new window with simple invoice content for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const invoiceHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Tax Invoice</title>
-        <style>
-          body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: #fff;
-            color: #000;
-            line-height: 1.4;
-          }
-          .invoice-container {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 1px solid #000;
-          }
-          .header { 
-            text-align: center; 
-            padding: 15px;
-            margin: 0;
-            border-bottom: 1px solid #000;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: bold;
-          }
-          .content {
-            padding: 20px;
-          }
-          .company-details { 
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            border: 1px solid #000;
-          }
-          .company-details h2 {
-            margin: 0 0 10px 0;
-            font-size: 20px;
-            font-weight: bold;
-          }
-          .company-details p {
-            margin: 5px 0;
-          }
-          .bill-details { 
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-            padding: 15px;
-            border: 1px solid #000;
-          }
-          .bill-section h3 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            font-weight: bold;
-            border-bottom: 1px solid #000;
-            padding-bottom: 5px;
-          }
-          .bill-section p {
-            margin: 5px 0;
-            font-size: 12px;
-          }
-          .products-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 20px;
-            border: 1px solid #000;
-          }
-          .products-table th { 
-            background: #fff;
-            color: #000;
-            padding: 10px 8px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 11px;
-            border: 1px solid #000;
-          }
-          .products-table td { 
-            border: 1px solid #000;
-            padding: 8px;
-            text-align: center;
-            font-size: 11px;
-          }
-          .summary-section {
-            padding: 15px;
-            border: 1px solid #000;
-            margin-bottom: 20px;
-          }
-          .summary-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #000;
-          }
-          .summary-row:last-child {
-            border-bottom: none;
-            font-weight: bold;
-            font-size: 14px;
-            border-top: 2px solid #000;
-            padding-top: 10px;
-            margin-top: 10px;
-          }
-          .footer-section {
-            display: grid;
-            grid-template-columns: 1fr 170px;
-            gap: 20px;
-            align-items: end;
-          }
-          .stamp-area { 
-            width: 150px;
-            height: 80px;
-            border: 1px dashed #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            text-align: center;
-          }
-          .signature-area {
-            text-align: center;
-            margin-top: 15px;
-          }
-          .signature-area p {
-            margin: 5px 0;
-            font-size: 11px;
-          }
-          .company-footer {
-            text-align: left;
-          }
-          .company-footer h4 {
-            margin: 0;
-            font-size: 14px;
-            font-weight: bold;
-          }
-          @media print {
-            body { margin: 0; padding: 10px; }
-            .invoice-container { border: 1px solid #000; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-container">
-          <div class="header">
-            <h1>TAX INVOICE</h1>
-          </div>
-          
-          <div class="content">
-            <div class="company-details">
-              <h2>HARI COLLECTION</h2>
-              <p><strong>SHOP NO. 2068, 2ND FLOOR, NATHANI HEIGHTS,<br>COMMERCIAL ARCADE, BELLASIS ROAD, MUMBAI-400008</strong></p>
-              <p><strong>Phone:</strong> 9967441689 | <strong>GSTIN:</strong> 27BDMPA9576PIZM | <strong>State:</strong> Maharashtra</p>
-            </div>
-            
-            <div class="bill-details">
-              <div class="bill-section">
-                <h3>Bill To</h3>
-                <p><strong>Customer:</strong> ${billData.customerName}</p>
-                <p><strong>Phone:</strong> ${billData.customerPhone}</p>
-              </div>
-              <div class="bill-section">
-                <h3>Invoice Details</h3>
-                <p><strong>Invoice No:</strong> ${billData.invoiceNo}</p>
-                <p><strong>Date:</strong> ${billData.date}</p>
-              </div>
-            </div>
-            
-            <table class="products-table">
-              <thead>
-                <tr>
-                  <th style="width: 5%">#</th>
-                  <th style="width: 35%">Item Name</th>
-                  <th style="width: 10%">Qty</th>
-                  <th style="width: 15%">Price/Unit</th>
-                  <th style="width: 10%">Discount</th>
-                  <th style="width: 10%">GST</th>
-                  <th style="width: 15%">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${billData.products.map((product, index) => {
-                  const itemTotal = product.quantity * product.price;
-                  const discountAmount = (itemTotal * product.discount) / 100;
-                  const afterDiscount = itemTotal - discountAmount;
-                  const gstAmount = (afterDiscount * 18) / 100;
-                  const finalAmount = afterDiscount + gstAmount;
-                  return `
-                    <tr>
-                      <td>${index + 1}</td>
-                      <td style="text-align: left; padding-left: 15px;">${product.name}</td>
-                      <td>${product.quantity}</td>
-                      <td>₹${product.price.toFixed(2)}</td>
-                      <td>${product.discount}%</td>
-                      <td>18%</td>
-                      <td><strong>₹${finalAmount.toFixed(2)}</strong></td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-            
-            <div class="summary-section">
-              <div class="summary-row">
-                <span>Subtotal (Before GST):</span>
-                <span>₹${calculateSubtotal().toFixed(2)}</span>
-              </div>
-              <div class="summary-row">
-                <span>GST (18%):</span>
-                <span>₹${calculateTotalGST().toFixed(2)}</span>
-              </div>
-              <div class="summary-row">
-                <span>Total Amount:</span>
-                <span>₹${calculateTotal().toFixed(2)}</span>
-              </div>
-            </div>
-            
-            <div class="footer-section">
-              <div class="company-footer">
-                <h4>For: Hari Collection</h4>
-                <p style="margin-top: 20px;">Thank you for your business!</p>
-              </div>
-              <div>
-                <div class="stamp-area">
-                  Company Seal/Stamp
-                </div>
-                <div class="signature-area">
-                  <p style="border-top: 1px solid #000; padding-top: 10px; margin-top: 15px;">Authorized Signatory</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    printWindow.document.write(invoiceHTML);
-    printWindow.document.close();
-    
-    // Wait for content to load then trigger print
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
-  };
-
-  const saveAsPDF = () => {
-    // Keep the original colorful PDF function
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const invoiceHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Tax Invoice</title>
-        <style>
-          body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: #fff;
-            color: #333;
-            line-height: 1.4;
-          }
-          .invoice-container {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 2px solid #2563eb;
-            border-radius: 8px;
-            overflow: hidden;
-          }
-          .header { 
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            text-align: center; 
-            padding: 20px;
-            margin: 0;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 700;
-            letter-spacing: 1px;
-          }
-          .content {
-            padding: 30px;
-          }
-          .company-details { 
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border-left: 4px solid #2563eb;
-          }
-          .company-details h2 {
-            margin: 0 0 10px 0;
-            color: #2563eb;
-            font-size: 24px;
-            font-weight: 700;
-          }
-          .company-details p {
-            margin: 5px 0;
-            color: #64748b;
-          }
-          .bill-details { 
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f1f5f9;
-            border-radius: 8px;
-          }
-          .bill-section h3 {
-            margin: 0 0 15px 0;
-            color: #2563eb;
-            font-size: 16px;
-            font-weight: 600;
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 5px;
-          }
-          .bill-section p {
-            margin: 8px 0;
-            font-size: 14px;
-          }
-          .products-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            overflow: hidden;
-          }
-          .products-table th { 
-            background: #2563eb;
-            color: white;
-            padding: 15px 10px;
-            text-align: center;
-            font-weight: 600;
-            font-size: 12px;
-          }
-          .products-table td { 
-            border: 1px solid #e2e8f0;
-            padding: 12px 10px;
-            text-align: center;
-            font-size: 12px;
-          }
-          .products-table tbody tr:nth-child(even) {
-            background: #f8fafc;
-          }
-          .products-table tbody tr:hover {
-            background: #e2e8f0;
-          }
-          .summary-section {
-            background: #f8fafc;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 30px;
-          }
-          .summary-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e2e8f0;
-          }
-          .summary-row:last-child {
-            border-bottom: none;
-            font-weight: 700;
-            font-size: 18px;
-            color: #2563eb;
-            border-top: 2px solid #2563eb;
-            padding-top: 15px;
-            margin-top: 10px;
-          }
-          .footer-section {
-            display: grid;
-            grid-template-columns: 1fr 170px;
-            gap: 30px;
-            align-items: end;
-          }
-          .stamp-area { 
-            width: 150px;
-            height: 80px;
-            border: 2px dashed #94a3b8;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #64748b;
-            font-size: 12px;
-            text-align: center;
-            background: #f8fafc;
-            border-radius: 4px;
-          }
-          .signature-area {
-            text-align: center;
-            margin-top: 15px;
-          }
-          .signature-area p {
-            margin: 5px 0;
-            font-size: 12px;
-            color: #64748b;
-          }
-          .company-footer {
-            text-align: left;
-          }
-          .company-footer h4 {
-            margin: 0;
-            color: #2563eb;
-            font-size: 16px;
-          }
-          @media print {
-            body { margin: 0; padding: 10px; }
-            .invoice-container { border: 1px solid #000; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-container">
-          <div class="header">
-            <h1>TAX INVOICE</h1>
-          </div>
-          
-          <div class="content">
-            <div class="company-details">
-              <h2>HARI COLLECTION</h2>
-              <p><strong>SHOP NO. 2068, 2ND FLOOR, NATHANI HEIGHTS,<br>COMMERCIAL ARCADE, BELLASIS ROAD, MUMBAI-400008</strong></p>
-              <p><strong>Phone:</strong> 9967441689 | <strong>GSTIN:</strong> 27BDMPA9576PIZM | <strong>State:</strong> Maharashtra</p>
-            </div>
-            
-            <div class="bill-details">
-              <div class="bill-section">
-                <h3>Bill To</h3>
-                <p><strong>Customer:</strong> ${billData.customerName}</p>
-                <p><strong>Phone:</strong> ${billData.customerPhone}</p>
-              </div>
-              <div class="bill-section">
-                <h3>Invoice Details</h3>
-                <p><strong>Invoice No:</strong> ${billData.invoiceNo}</p>
-                <p><strong>Date:</strong> ${billData.date}</p>
-              </div>
-            </div>
-            
-            <table class="products-table">
-              <thead>
-                <tr>
-                  <th style="width: 5%">#</th>
-                  <th style="width: 35%">Item Name</th>
-                  <th style="width: 10%">Qty</th>
-                  <th style="width: 15%">Price/Unit</th>
-                  <th style="width: 10%">Discount</th>
-                  <th style="width: 10%">GST</th>
-                  <th style="width: 15%">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${billData.products.map((product, index) => {
-                  const itemTotal = product.quantity * product.price;
-                  const discountAmount = (itemTotal * product.discount) / 100;
-                  const afterDiscount = itemTotal - discountAmount;
-                  const gstAmount = (afterDiscount * 18) / 100;
-                  const finalAmount = afterDiscount + gstAmount;
-                  return `
-                    <tr>
-                      <td>${index + 1}</td>
-                      <td style="text-align: left; padding-left: 15px;">${product.name}</td>
-                      <td>${product.quantity}</td>
-                      <td>₹${product.price.toFixed(2)}</td>
-                      <td>${product.discount}%</td>
-                      <td>18%</td>
-                      <td><strong>₹${finalAmount.toFixed(2)}</strong></td>
-                    </tr>
-                  `;
-                }).join('')}
-              </tbody>
-            </table>
-            
-            <div class="summary-section">
-              <div class="summary-row">
-                <span>Subtotal (Before GST):</span>
-                <span>₹${calculateSubtotal().toFixed(2)}</span>
-              </div>
-              <div class="summary-row">
-                <span>GST (18%):</span>
-                <span>₹${calculateTotalGST().toFixed(2)}</span>
-              </div>
-              <div class="summary-row">
-                <span>Total Amount:</span>
-                <span>₹${calculateTotal().toFixed(2)}</span>
-              </div>
-            </div>
-            
-            <div class="footer-section">
-              <div class="company-footer">
-                <h4>For: Hari Collection</h4>
-                <p style="margin-top: 20px; color: #64748b;">Thank you for your business!</p>
-              </div>
-              <div>
-                <div class="stamp-area">
-                  Company Seal/Stamp
-                </div>
-                <div class="signature-area">
-                  <p style="border-top: 1px solid #94a3b8; padding-top: 10px; margin-top: 15px;">Authorized Signatory</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    printWindow.document.write(invoiceHTML);
-    printWindow.document.close();
-    
-    // Wait for content to load then trigger print
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+  const saveInvoicePdf = () => {
+    downloadInvoicePdf(getInvoicePdfData());
   };
 
   return (
-    <div className="p-4 space-y-6">
-      {/* Customer Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Customer Details</CardTitle>
+    <div className="space-y-4 px-2 pb-24 pt-2 sm:px-4">
+      <Card id="add-product-section">
+        <CardHeader className="space-y-1 pb-3">
+          <CardTitle className="text-base font-semibold">Product Photo</CardTitle>
+          <p className="text-sm text-muted-foreground">Upload up to two product photos to fill model, serial number, and color.</p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
+          <Label
+            htmlFor="productPhoto"
+            className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-input bg-muted/30 px-4 py-5 text-center"
+          >
+            {isExtractingDetails ? <Loader2 className="mb-2 h-6 w-6 animate-spin" /> : <Upload className="mb-2 h-6 w-6" />}
+            <span className="text-sm font-medium">{isExtractingDetails ? "Extracting details..." : "Upload product photo"}</span>
+            <span className="text-xs text-muted-foreground">{productPhotos.length}/2 photos selected</span>
+          </Label>
+          <Input
+            id="productPhoto"
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            disabled={productPhotos.length >= 2 || isExtractingDetails}
+            onChange={handlePhotoUpload}
+          />
+          {productPhotos.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {productPhotos.map((photo) => (
+                <div key={photo.id} className="relative overflow-hidden rounded-md border bg-muted">
+                  <img src={photo.previewUrl} alt="Uploaded product" className="h-28 w-full object-cover" />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="absolute right-2 top-2 h-8 w-8 p-0"
+                    onClick={() => removeProductPhoto(photo.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {extractionStatus && <p className="text-sm text-muted-foreground">{extractionStatus}</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Invoice Details</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="customerName">Customer Name</Label>
             <Input
               id="customerName"
               value={billData.customerName}
-              onChange={(e) => setBillData(prev => ({ ...prev, customerName: e.target.value }))}
+              onChange={(e) => setBillData((prev) => ({ ...prev, customerName: e.target.value }))}
               placeholder="Enter customer name"
             />
           </div>
@@ -963,327 +517,291 @@ export const Bills = () => {
             <Input
               id="customerPhone"
               value={billData.customerPhone}
-              onChange={(e) => setBillData(prev => ({ ...prev, customerPhone: e.target.value }))}
+              onChange={(e) => setBillData((prev) => ({ ...prev, customerPhone: e.target.value }))}
               placeholder="Enter phone number"
               type="tel"
+            />
+          </div>
+          <div>
+            <Label htmlFor="invoiceDate">Invoice Date</Label>
+            <Input
+              id="invoiceDate"
+              type="date"
+              value={billData.date}
+              onChange={(e) => setBillData((prev) => ({ ...prev, date: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="invoiceNo">Invoice Number</Label>
+            <Input
+              id="invoiceNo"
+              value={billData.invoiceNo}
+              onChange={(e) => setBillData((prev) => ({ ...prev, invoiceNo: e.target.value }))}
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Add Product */}
-      <Card id="add-product-section">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Add Product</CardTitle>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Product Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Product Search */}
+        <CardContent className="space-y-3">
           <div className="relative">
-            <Label htmlFor="productSearch">Search Product</Label>
+            <Label htmlFor="productSearch">Search or Scan</Label>
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="productSearch"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by product name, serial number, or color"
-                  className="pl-10"
+                  placeholder="Name, serial number, or color"
+                  className="pl-9"
                 />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={startCamera}
-                disabled={isScanning}
-              >
-                <Camera className="w-4 h-4 mr-2" />
-                {isScanning ? 'Scanning...' : 'Scan'}
+              <Button type="button" variant="outline" onClick={startCamera} disabled={isScanning}>
+                <Camera className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline">{isScanning ? "Scanning" : "Scan"}</span>
               </Button>
             </div>
-            
-            {/* Search Results Dropdown */}
+
             {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-background shadow-lg">
                 {searchResults.map((product) => (
-                  <div
+                  <button
                     key={product.id}
-                    className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                    type="button"
+                    className="block w-full border-b p-3 text-left last:border-b-0 hover:bg-muted"
                     onClick={() => selectProduct(product)}
                   >
-                    <div className="font-medium">{product.product_name}</div>
-                    <div className="text-sm text-gray-600">
+                    <span className="block font-medium">{product.product_name}</span>
+                    <span className="text-sm text-muted-foreground">
                       Serial: {product.serial_number}
-                      {product.color && ` • Color: ${product.color}`}
-                      • Qty: {product.quantity}
-                    </div>
-                  </div>
+                      {product.color && ` | Color: ${product.color}`} | Qty: {product.quantity}
+                    </span>
+                  </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Camera Modal */}
-          {isScanning && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Scan Serial Number</h3>
-                  <Button variant="outline" onClick={stopCamera}>
-                    Close
-                  </Button>
-                </div>
-                <div className="space-y-4">
-                  <div className="bg-gray-100 h-48 flex items-center justify-center rounded overflow-hidden relative">
-                    <video
-                      ref={videoRef}
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      playsInline
-                      muted
-                    />
-                    <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-70 text-white text-sm p-2 rounded">
-                      {scanningStatus}
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="manualSerial">Or enter serial number manually:</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        id="manualSerial"
-                        placeholder="Enter serial number"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            const target = e.target as HTMLInputElement;
-                            searchBySerialNumber(target.value);
-                          }
-                        }}
-                      />
-                      <Button
-                        onClick={(e) => {
-                          const input = (e.target as HTMLElement).parentElement?.querySelector('input') as HTMLInputElement;
-                          if (input?.value) {
-                            searchBySerialNumber(input.value);
-                          }
-                        }}
-                      >
-                        Search
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="productName">Product Name</Label>
+              <Input
+                id="productName"
+                value={newProduct.name}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Product name"
+              />
             </div>
-          )}
-
-          <div>
-            <Label htmlFor="productName">Product Name</Label>
-            <Input
-              id="productName"
-              value={newProduct.name}
-              onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter product name or select from search"
-            />
+            <div>
+              <Label htmlFor="productModel">Model</Label>
+              <Input
+                id="productModel"
+                value={newProduct.model}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, model: e.target.value }))}
+                placeholder="Model"
+              />
+            </div>
+            <div>
+              <Label htmlFor="serialNumber">Serial Number</Label>
+              <Input
+                id="serialNumber"
+                value={newProduct.serialNumber}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, serialNumber: e.target.value }))}
+                placeholder="Serial number"
+              />
+            </div>
+            <div>
+              <Label htmlFor="productColor">Color</Label>
+              <Input
+                id="productColor"
+                value={newProduct.color}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, color: e.target.value }))}
+                placeholder="Color"
+              />
+            </div>
           </div>
+
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <Label htmlFor="quantity">Quantity</Label>
+              <Label htmlFor="quantity">Qty</Label>
               <Input
                 id="quantity"
                 type="number"
                 value={newProduct.quantity}
-                onChange={(e) => setNewProduct(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
                 min="1"
               />
             </div>
             <div>
-              <Label htmlFor="price">Price (₹)</Label>
+              <Label htmlFor="price">Price</Label>
               <Input
                 id="price"
                 type="number"
                 value={newProduct.price}
-                onChange={(e) => setNewProduct(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                 min="0"
                 step="0.01"
               />
             </div>
             <div>
-              <Label htmlFor="discount">Discount (%)</Label>
+              <Label htmlFor="discount">Discount</Label>
               <Input
                 id="discount"
                 type="number"
                 value={newProduct.discount}
-                onChange={(e) => setNewProduct(prev => ({ ...prev, discount: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, discount: parseFloat(e.target.value) || 0 }))}
                 min="0"
                 max="100"
               />
             </div>
           </div>
-          <Button onClick={addProduct} className="w-full">
-            <Plus className="w-4 h-4 mr-2" />
+
+          <Button onClick={addProduct} className="w-full" disabled={!newProduct.name || newProduct.price <= 0}>
+            <Plus className="mr-2 h-4 w-4" />
             Add Product
           </Button>
         </CardContent>
       </Card>
 
-      {/* Products List */}
+      {isScanning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-md bg-background p-4 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-base font-semibold">Scan Serial Number</h3>
+              <Button variant="outline" size="sm" onClick={stopCamera}>
+                Close
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div className="relative h-52 overflow-hidden rounded-md bg-muted">
+                <video ref={videoRef} className="h-full w-full object-cover" autoPlay playsInline muted />
+                <div className="absolute bottom-2 left-2 right-2 rounded bg-black/70 p-2 text-sm text-white">{scanningStatus}</div>
+              </div>
+              <div>
+                <Label htmlFor="manualSerial">Enter serial number manually</Label>
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    id="manualSerial"
+                    ref={manualSerialRef}
+                    placeholder="Serial number"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        searchBySerialNumber((e.target as HTMLInputElement).value);
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={() => searchBySerialNumber(manualSerialRef.current?.value || "")}>
+                    Search
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {billData.products.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Products</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Products</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {billData.products.map((product) => (
-                <div key={product.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{product.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Qty: {product.quantity} × ₹{product.price} 
-                      {product.discount > 0 && ` (${product.discount}% off)`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">₹{calculateAmount(product).toFixed(2)}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeProduct(product.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+          <CardContent className="space-y-3">
+            {billData.products.map((product) => (
+              <div key={product.id} className="flex items-start justify-between gap-3 rounded-md border p-3">
+                <div className="min-w-0 flex-1">
+                  <h4 className="break-words font-medium">{product.name}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Qty: {product.quantity} x Rs. {product.price.toFixed(2)}
+                    {product.discount > 0 && ` | ${product.discount}% off`}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="font-semibold">Rs. {calculateAmount(product).toFixed(2)}</span>
+                  <Button variant="outline" size="sm" onClick={() => removeProduct(product.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
 
-      {/* Bill Preview */}
       {billData.products.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-center">TAX INVOICE</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-base font-semibold">
+              <span>Invoice Preview</span>
+              <span className="text-sm font-normal text-muted-foreground">{billData.invoiceNo}</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Company Header */}
-            <div className="text-center space-y-1">
-              <h2 className="text-xl font-bold">HARI COLLECTION</h2>
-              <p className="text-sm text-muted-foreground">
-                SHOP NO. 2068, 2ND FLOOR, NATHANI HEIGHTS,<br />
-                COMMERCIAL ARCADE, BELLASIS ROAD, MUMBAI-400008
+            <div className="space-y-1 text-center">
+              <h2 className="text-lg font-bold">HARI COLLECTION</h2>
+              <p className="text-xs text-muted-foreground">
+                Shop No. 2068, 2nd Floor, Nathani Heights, Commercial Arcade, Bellasis Road, Mumbai-400008
               </p>
-              <p className="text-sm">
-                <span className="font-medium">Phone:</span> 9967441689 | 
-                <span className="font-medium">GSTIN:</span> 27BDMPA9576PIZM
-              </p>
+              <p className="text-xs">Phone: 9967441689 | GSTIN: 27BDMPA9576PIZM</p>
             </div>
 
             <Separator />
 
-            {/* Bill Details */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <p><span className="font-medium">Bill To:</span> {billData.customerName}</p>
-                <p><span className="font-medium">Phone:</span> {billData.customerPhone}</p>
+                <p className="font-medium">Bill To</p>
+                <p>{billData.customerName || "-"}</p>
+                <p>{billData.customerPhone || "-"}</p>
               </div>
-              <div className="text-right">
-                <p><span className="font-medium">Invoice No:</span> {billData.invoiceNo}</p>
-                <p><span className="font-medium">Date:</span> {billData.date}</p>
+              <div className="sm:text-right">
+                <p>Date: {billData.date}</p>
+                <p>Items: {billData.products.length}</p>
               </div>
             </div>
 
-            <Separator />
-
-            {/* Items Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 p-2 text-left">#</th>
-                    <th className="border border-gray-300 p-2 text-left">Item Name</th>
-                    <th className="border border-gray-300 p-2 text-center">Qty</th>
-                    <th className="border border-gray-300 p-2 text-right">Price/Unit</th>
-                    <th className="border border-gray-300 p-2 text-center">Discount</th>
-                    <th className="border border-gray-300 p-2 text-center">GST</th>
-                    <th className="border border-gray-300 p-2 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {billData.products.map((product, index) => {
-                    const itemTotal = product.quantity * product.price;
-                    const discountAmount = (itemTotal * product.discount) / 100;
-                    const afterDiscount = itemTotal - discountAmount;
-                    const gstAmount = (afterDiscount * 18) / 100;
-                    const finalAmount = afterDiscount + gstAmount;
-                    return (
-                      <tr key={product.id}>
-                        <td className="border border-gray-300 p-2 text-center">{index + 1}</td>
-                        <td className="border border-gray-300 p-2">{product.name}</td>
-                        <td className="border border-gray-300 p-2 text-center">{product.quantity}</td>
-                        <td className="border border-gray-300 p-2 text-right">₹{product.price.toFixed(2)}</td>
-                        <td className="border border-gray-300 p-2 text-center">{product.discount}%</td>
-                        <td className="border border-gray-300 p-2 text-center">18%</td>
-                        <td className="border border-gray-300 p-2 text-right font-medium">₹{finalAmount.toFixed(2)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <Separator />
-
-            {/* Bill Summary */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Subtotal (Before GST):</span>
-                <span>₹{calculateSubtotal().toFixed(2)}</span>
+                <span>Subtotal</span>
+                <span>Rs. {calculateSubtotal().toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>GST (18%):</span>
-                <span>₹{calculateTotalGST().toFixed(2)}</span>
+                <span>GST (18%)</span>
+                <span>Rs. {calculateTotalGST().toFixed(2)}</span>
               </div>
               <Separator />
               <div className="flex justify-between text-lg font-bold">
-                <span>Total Amount:</span>
-                <span>₹{calculateTotal().toFixed(2)}</span>
+                <span>Total</span>
+                <span>Rs. {calculateTotal().toFixed(2)}</span>
               </div>
             </div>
 
-            {/* Stamp and Signature Area */}
-            <div className="mt-8 flex justify-between items-end">
-              <div className="text-sm text-gray-600">
-                <p className="font-semibold">For: Hari Collection</p>
-              </div>
-              <div className="text-center">
-                <div className="w-48 h-20 border-2 border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 mb-2">
-                  Company Seal/Stamp
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label htmlFor="directCustomerShare" className="font-medium">
+                    Send to customer number
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Off shares the PDF with anyone from the share sheet.</p>
                 </div>
-                <div className="text-xs text-gray-600 border-t border-gray-300 pt-2">
-                  Authorized Signatory
-                </div>
+                <Switch id="directCustomerShare" checked={shareWithCustomerDirectly} onCheckedChange={setShareWithCustomerDirectly} />
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <Button 
-                onClick={shareToWhatsApp} 
-                className="flex-1 bg-green-600 hover:bg-green-700"
-                disabled={!billData.customerName || !billData.customerPhone || billData.products.length === 0}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                onClick={shareToWhatsApp}
+                className="bg-green-600 hover:bg-green-700"
+                disabled={!billData.customerName || billData.products.length === 0 || (shareWithCustomerDirectly && !billData.customerPhone)}
               >
-                <Phone className="w-4 h-4 mr-2" />
-                Share to WhatsApp
+                <Phone className="mr-2 h-4 w-4" />
+                Share PDF
               </Button>
-              <Button 
-                onClick={saveAsPDF}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                disabled={billData.products.length === 0}
-              >
-                <Share className="w-4 h-4 mr-2" />
-                Save as PDF
+              <Button onClick={saveInvoicePdf} variant="outline" disabled={billData.products.length === 0}>
+                <FileText className="mr-2 h-4 w-4" />
+                Save PDF
               </Button>
             </div>
           </CardContent>
