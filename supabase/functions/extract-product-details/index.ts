@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
               {
                 type: "input_text",
                 text:
-                  "Extract product details for an invoice from these photos. Return only JSON with productName, model, serialNumber, color, and price. Use empty strings for missing text and null for missing price.",
+                  "Extract product details for an invoice from these photos. Return only JSON with productName, model, serialNumber, color, and price. Include the visible brand/manufacturer in productName when present, for example 'Ambrane Power Bank' instead of only 'Power Bank'. Use empty strings for missing text and null for missing price.",
               },
               ...imageContent,
             ],

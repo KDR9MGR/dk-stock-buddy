@@ -458,8 +458,8 @@ export const Bills = () => {
     <div className="space-y-4 px-2 pb-24 pt-2 sm:px-4">
       <Card id="add-product-section">
         <CardHeader className="space-y-1 pb-3">
-          <CardTitle className="text-base font-semibold">Product Photo</CardTitle>
-          <p className="text-sm text-muted-foreground">Upload up to two product photos to fill model, serial number, and color.</p>
+          <CardTitle className="text-base font-semibold">1. Upload Photo</CardTitle>
+          <p className="text-sm text-muted-foreground">Upload up to two product photos to fill brand, model, serial number, and color.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <Label
@@ -507,7 +507,7 @@ export const Bills = () => {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <div>
-            <Label htmlFor="customerName">Customer Name</Label>
+            <Label htmlFor="customerName">2. Customer Name</Label>
             <Input
               id="customerName"
               value={billData.customerName}
@@ -516,7 +516,7 @@ export const Bills = () => {
             />
           </div>
           <div>
-            <Label htmlFor="customerPhone">Phone Number</Label>
+            <Label htmlFor="customerPhone">3. Phone Number</Label>
             <Input
               id="customerPhone"
               value={billData.customerPhone}
@@ -547,9 +547,34 @@ export const Bills = () => {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold">Product Details</CardTitle>
+          <CardTitle className="text-base font-semibold">4. Quantity & Price</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/20 p-3">
+            <div>
+              <Label htmlFor="quantity">Qty</Label>
+              <Input
+                id="quantity"
+                type="number"
+                value={newProduct.quantity}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                min="1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="price">Price</Label>
+              <Input
+                id="price"
+                type="number"
+                value={newProduct.price === 0 ? "" : newProduct.price}
+                onChange={(e) => setNewProduct((prev) => ({ ...prev, price: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0 }))}
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
           <div className="relative">
             <Label htmlFor="productSearch">Search or Scan</Label>
             <div className="flex gap-2">
@@ -624,41 +649,6 @@ export const Bills = () => {
                 value={newProduct.color}
                 onChange={(e) => setNewProduct((prev) => ({ ...prev, color: e.target.value }))}
                 placeholder="Color"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label htmlFor="quantity">Qty</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={newProduct.quantity}
-                onChange={(e) => setNewProduct((prev) => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                min="1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="price">Price</Label>
-              <Input
-                id="price"
-                type="number"
-                value={newProduct.price}
-                onChange={(e) => setNewProduct((prev) => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                min="0"
-                step="0.01"
-              />
-            </div>
-            <div>
-              <Label htmlFor="discount">Discount</Label>
-              <Input
-                id="discount"
-                type="number"
-                value={newProduct.discount}
-                onChange={(e) => setNewProduct((prev) => ({ ...prev, discount: parseFloat(e.target.value) || 0 }))}
-                min="0"
-                max="100"
               />
             </div>
           </div>
