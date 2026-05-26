@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,6 +71,12 @@ const createId = () => {
 
 const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
 
+const normalizeWhatsAppPhone = (phone: string) => {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  return digits;
+};
+
 export const Bills = () => {
   const [billData, setBillData] = useState<BillData>({
     customerName: "",
@@ -81,6 +88,7 @@ export const Bills = () => {
   const [newProduct, setNewProduct] = useState<NewProduct>(createEmptyProduct);
   const [productPhotos, setProductPhotos] = useState<ProductPhoto[]>([]);
   const [isExtractingDetails, setIsExtractingDetails] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState(0);
   const [extractionStatus, setExtractionStatus] = useState("");
   const [shareWithCustomerDirectly, setShareWithCustomerDirectly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,6 +130,26 @@ export const Bills = () => {
       codeReader.current?.reset();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isExtractingDetails) {
+      setExtractionProgress(0);
+      return;
+    }
+
+    setExtractionProgress(12);
+    const progressSteps = [28, 46, 63, 78, 88, 94];
+    let stepIndex = 0;
+    const intervalId = window.setInterval(() => {
+      setExtractionProgress((current) => {
+        const nextStep = progressSteps[Math.min(stepIndex, progressSteps.length - 1)];
+        stepIndex += 1;
+        return Math.max(current, nextStep);
+      });
+    }, 650);
+
+    return () => window.clearInterval(intervalId);
+  }, [isExtractingDetails]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(async () => {
@@ -422,10 +450,20 @@ export const Bills = () => {
       return;
     }
 
-    const phoneNumber = billData.customerPhone.replace(/[^0-9]/g, "");
+    const phoneNumber = normalizeWhatsAppPhone(billData.customerPhone);
     const shareText = getInvoiceShareText();
 
     try {
+      if (shareWithCustomerDirectly) {
+        if (phoneNumber.length < 10) {
+          alert("Please enter a valid customer phone number");
+          return;
+        }
+
+        window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       const pdfFile = await createInvoicePdfFile(getInvoicePdfData());
 
       if (navigator.canShare?.({ files: [pdfFile] })) {
@@ -439,9 +477,6 @@ export const Bills = () => {
         alert("PDF downloaded. Attach it in WhatsApp to share the invoice.");
       }
 
-      if (shareWithCustomerDirectly && phoneNumber) {
-        window.open(`https://wa.me/91${phoneNumber}?text=${encodeURIComponent(shareText)}`, "_blank");
-      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       console.error("Error sharing invoice PDF:", error);
@@ -462,16 +497,26 @@ export const Bills = () => {
           <p className="text-sm text-muted-foreground">Upload up to two product photos to fill brand, model, serial number, and color.</p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Label
-            htmlFor="productPhoto"
-            className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-input bg-muted/30 px-4 py-5 text-center"
-          >
-            {isExtractingDetails ? <Loader2 className="mb-2 h-6 w-6 animate-spin" /> : <Upload className="mb-2 h-6 w-6" />}
-            <span className="text-sm font-medium">{isExtractingDetails ? "Extracting details..." : "Upload product photo"}</span>
-            <span className="text-xs text-muted-foreground">{productPhotos.length}/2 photos selected</span>
-          </Label>
+          <div className="grid grid-cols-2 gap-2">
+            <Label
+              htmlFor="productPhotoGallery"
+              className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-input bg-muted/30 px-3 py-4 text-center"
+            >
+              {isExtractingDetails ? <Loader2 className="mb-2 h-5 w-5 animate-spin" /> : <Upload className="mb-2 h-5 w-5" />}
+              <span className="text-sm font-medium">{isExtractingDetails ? "Extracting..." : "From gallery"}</span>
+              <span className="text-xs text-muted-foreground">{productPhotos.length}/2 selected</span>
+            </Label>
+            <Label
+              htmlFor="productPhotoCamera"
+              className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-input bg-muted/30 px-3 py-4 text-center"
+            >
+              {isExtractingDetails ? <Loader2 className="mb-2 h-5 w-5 animate-spin" /> : <Camera className="mb-2 h-5 w-5" />}
+              <span className="text-sm font-medium">{isExtractingDetails ? "Extracting..." : "Open camera"}</span>
+              <span className="text-xs text-muted-foreground">Take product photo</span>
+            </Label>
+          </div>
           <Input
-            id="productPhoto"
+            id="productPhotoGallery"
             type="file"
             accept="image/*"
             multiple
@@ -479,6 +524,34 @@ export const Bills = () => {
             disabled={productPhotos.length >= 2 || isExtractingDetails}
             onChange={handlePhotoUpload}
           />
+          <Input
+            id="productPhotoCamera"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            disabled={productPhotos.length >= 2 || isExtractingDetails}
+            onChange={handlePhotoUpload}
+          />
+          {isExtractingDetails && (
+            <div className="overflow-hidden rounded-md border bg-background shadow-sm">
+              <div className="flex items-start gap-3 p-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">Reading product photo</p>
+                      <p className="text-xs text-muted-foreground">Extracting brand, model, serial number, color, and price.</p>
+                    </div>
+                    <span className="shrink-0 text-xs font-medium text-muted-foreground">{Math.round(extractionProgress)}%</span>
+                  </div>
+                  <Progress value={extractionProgress} className="h-2" />
+                </div>
+              </div>
+            </div>
+          )}
           {productPhotos.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               {productPhotos.map((photo) => (
@@ -777,7 +850,7 @@ export const Bills = () => {
                   <Label htmlFor="directCustomerShare" className="font-medium">
                     Send to customer number
                   </Label>
-                  <p className="text-xs text-muted-foreground">Off shares the PDF with anyone from the share sheet.</p>
+                  <p className="text-xs text-muted-foreground">On opens WhatsApp directly. Off shares the PDF from the system share sheet.</p>
                 </div>
                 <Switch id="directCustomerShare" checked={shareWithCustomerDirectly} onCheckedChange={setShareWithCustomerDirectly} />
               </div>
@@ -790,7 +863,7 @@ export const Bills = () => {
                 disabled={!billData.customerName || billData.products.length === 0 || (shareWithCustomerDirectly && !billData.customerPhone)}
               >
                 <Phone className="mr-2 h-4 w-4" />
-                Share PDF
+                {shareWithCustomerDirectly ? "Open WhatsApp" : "Share PDF"}
               </Button>
               <Button onClick={saveInvoicePdf} variant="outline" disabled={billData.products.length === 0}>
                 <FileText className="mr-2 h-4 w-4" />
