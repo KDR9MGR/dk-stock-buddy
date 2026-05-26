@@ -68,6 +68,8 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
+const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
+
 export const Bills = () => {
   const [billData, setBillData] = useState<BillData>({
     customerName: "",
@@ -412,7 +414,7 @@ export const Bills = () => {
   });
 
   const getInvoiceShareText = () =>
-    `Tax Invoice - HARI COLLECTION\nInvoice No: ${billData.invoiceNo}\nCustomer: ${billData.customerName}\nTotal: Rs. ${calculateTotal().toFixed(2)}`;
+    `Tax Invoice - HARI COLLECTION\nInvoice No: ${billData.invoiceNo}\nCustomer: ${billData.customerName}\nTotal: ${formatCurrency(calculateTotal())}`;
 
   const shareToWhatsApp = async () => {
     if (shareWithCustomerDirectly && !billData.customerPhone) {
@@ -420,11 +422,12 @@ export const Bills = () => {
       return;
     }
 
-    const pdfFile = createInvoicePdfFile(getInvoicePdfData());
     const phoneNumber = billData.customerPhone.replace(/[^0-9]/g, "");
     const shareText = getInvoiceShareText();
 
     try {
+      const pdfFile = await createInvoicePdfFile(getInvoicePdfData());
+
       if (navigator.canShare?.({ files: [pdfFile] })) {
         await navigator.share({
           title: `Invoice ${billData.invoiceNo}`,
@@ -432,7 +435,7 @@ export const Bills = () => {
           files: [pdfFile],
         });
       } else {
-        downloadInvoicePdf(getInvoicePdfData());
+        await downloadInvoicePdf(getInvoicePdfData());
         alert("PDF downloaded. Attach it in WhatsApp to share the invoice.");
       }
 
@@ -442,13 +445,13 @@ export const Bills = () => {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       console.error("Error sharing invoice PDF:", error);
-      downloadInvoicePdf(getInvoicePdfData());
+      await downloadInvoicePdf(getInvoicePdfData());
       alert("Sharing was not available, so the invoice PDF was downloaded.");
     }
   };
 
-  const saveInvoicePdf = () => {
-    downloadInvoicePdf(getInvoicePdfData());
+  const saveInvoicePdf = async () => {
+    await downloadInvoicePdf(getInvoicePdfData());
   };
 
   return (
@@ -715,12 +718,12 @@ export const Bills = () => {
                 <div className="min-w-0 flex-1">
                   <h4 className="break-words font-medium">{product.name}</h4>
                   <p className="text-sm text-muted-foreground">
-                    Qty: {product.quantity} x Rs. {product.price.toFixed(2)}
+                    Qty: {product.quantity} x {formatCurrency(product.price)}
                     {product.discount > 0 && ` | ${product.discount}% off`}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="font-semibold">Rs. {calculateAmount(product).toFixed(2)}</span>
+                  <span className="font-semibold">{formatCurrency(calculateAmount(product))}</span>
                   <Button variant="outline" size="sm" onClick={() => removeProduct(product.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -741,7 +744,7 @@ export const Bills = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1 text-center">
-              <h2 className="text-lg font-bold">HARI COLLECTION</h2>
+              <h2 className="text-lg font-bold tracking-wide">HARI COLLECTION</h2>
               <p className="text-xs text-muted-foreground">
                 Shop No. 2068, 2nd Floor, Nathani Heights, Commercial Arcade, Bellasis Road, Mumbai-400008
               </p>
@@ -762,19 +765,19 @@ export const Bills = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="rounded-md border bg-muted/20 p-3">
               <div className="flex justify-between text-sm">
                 <span>Subtotal</span>
-                <span>Rs. {calculateSubtotal().toFixed(2)}</span>
+                <span>{formatCurrency(calculateSubtotal())}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="mt-2 flex justify-between text-sm">
                 <span>GST (18%)</span>
-                <span>Rs. {calculateTotalGST().toFixed(2)}</span>
+                <span>{formatCurrency(calculateTotalGST())}</span>
               </div>
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
+              <Separator className="my-3" />
+              <div className="flex justify-between rounded-md bg-foreground px-3 py-2 text-lg font-bold text-background">
                 <span>Total</span>
-                <span>Rs. {calculateTotal().toFixed(2)}</span>
+                <span>{formatCurrency(calculateTotal())}</span>
               </div>
             </div>
 
