@@ -4,6 +4,7 @@
       "eslint.config.js",
       "postcss.config.js",
       "public/sw.js",
+      "src/.graphify/studio/assets/index-CU5cXRnL.js",
       "src/App.tsx",
       "src/components/AddStock.tsx",
       "src/components/Bills.tsx",
@@ -78,12 +79,33 @@
       "vite.config.ts"
     ],
     "document": [
+      ".graphify/GRAPH_REPORT.md",
       "README.md",
+      "exports/morning_ai_brief_2026-05-28.html",
       "index.html",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
       "public/robots.txt",
+      "src/.graphify/GRAPH_REPORT.md",
+      "src/.graphify/description-instructions/batch-000.md",
+      "src/.graphify/description-instructions/batch-001.md",
+      "src/.graphify/description-instructions/batch-002.md",
+      "src/.graphify/description-instructions/batch-003.md",
+      "src/.graphify/description-instructions/batch-004.md",
+      "src/.graphify/description-instructions/batch-005.md",
+      "src/.graphify/description-instructions/batch-006.md",
+      "src/.graphify/description-instructions/batch-007.md",
+      "src/.graphify/description-instructions/batch-008.md",
+      "src/.graphify/description-instructions/batch-009.md",
+      "src/.graphify/label-instructions/communities.md",
+      "src/.graphify/studio/index.html",
+      "src/.graphify/studio/studio-template.html",
+      "src/.graphify/studio/studio.html",
       "test-bills.html"
     ],
-    "paper": [],
+    "paper": [
+      "exports/morning_ai_brief_2026-05-28.pdf"
+    ],
     "image": [
       "public/dk_logo.jpg",
       "public/icon-192.svg",
@@ -92,15 +114,15 @@
     ],
     "video": []
   },
-  "total_files": 83,
-  "total_words": 27767,
-  "needs_graph": false,
-  "warning": "Corpus is ~27,767 words - fits in a single context window. You may not need a graph.",
+  "total_files": 104,
+  "total_words": 96969,
+  "needs_graph": true,
+  "warning": null,
   "skipped_sensitive": [],
   "graphifyignore_patterns": 23,
   "git": {
     "source_owner": "git",
-    "source_hash": "71e9968bd270ada8fec9ef056053972f310e24a4",
+    "source_hash": "741db110e1aa1222af2251f709ecd97e01cd4c06",
     "branches": [
       "main"
     ],
@@ -113,13 +135,13 @@
     "source": "default-auto",
     "root": ".",
     "git_root": ".",
-    "head": "71e9968bd270ada8fec9ef056053972f310e24a4",
-    "candidate_count": 99,
-    "included_count": 83,
+    "head": "741db110e1aa1222af2251f709ecd97e01cd4c06",
+    "candidate_count": 289,
+    "included_count": 104,
     "excluded_untracked_count": 0,
     "excluded_ignored_count": 0,
     "excluded_sensitive_count": 0,
-    "missing_committed_count": 1,
+    "missing_committed_count": 0,
     "warnings": [],
     "recommendation": "Use --scope all or graphify.yaml inputs.corpus for a knowledge-base folder."
   }

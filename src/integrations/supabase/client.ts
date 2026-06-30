@@ -8,9 +8,100 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+const REMEMBER_LOGIN_KEY = "dk-stock-buddy-remember-login";
+const SUPABASE_STORAGE_PREFIX = "sb-";
+
+const hasWindow = () => typeof window !== "undefined";
+
+const getRememberedStoragePreference = () => {
+  if (!hasWindow()) {
+    return true;
+  }
+
+  return window.localStorage.getItem(REMEMBER_LOGIN_KEY) === "true";
+};
+
+const getActiveStorage = () => {
+  if (!hasWindow()) {
+    return undefined;
+  }
+
+  return getRememberedStoragePreference() ? window.localStorage : window.sessionStorage;
+};
+
+const getInactiveStorage = () => {
+  if (!hasWindow()) {
+    return undefined;
+  }
+
+  return getRememberedStoragePreference() ? window.sessionStorage : window.localStorage;
+};
+
+const moveSupabaseSessionEntries = (source: Storage, target: Storage) => {
+  const keysToMove: string[] = [];
+
+  for (let index = 0; index < source.length; index += 1) {
+    const key = source.key(index);
+    if (key?.startsWith(SUPABASE_STORAGE_PREFIX)) {
+      keysToMove.push(key);
+    }
+  }
+
+  keysToMove.forEach((key) => {
+    const value = source.getItem(key);
+    if (value !== null) {
+      target.setItem(key, value);
+    }
+    source.removeItem(key);
+  });
+};
+
+export const getRememberLoginPreference = () => getRememberedStoragePreference();
+
+export const setRememberLoginPreference = (enabled: boolean) => {
+  if (!hasWindow()) {
+    return;
+  }
+
+  window.localStorage.setItem(REMEMBER_LOGIN_KEY, String(enabled));
+
+  if (enabled) {
+    moveSupabaseSessionEntries(window.sessionStorage, window.localStorage);
+    return;
+  }
+
+  moveSupabaseSessionEntries(window.localStorage, window.sessionStorage);
+};
+
+const authStorage = {
+  getItem: (key: string) => {
+    if (!hasWindow()) {
+      return null;
+    }
+
+    return getActiveStorage()?.getItem(key) ?? getInactiveStorage()?.getItem(key) ?? null;
+  },
+  setItem: (key: string, value: string) => {
+    if (!hasWindow()) {
+      return;
+    }
+
+    getActiveStorage()?.setItem(key, value);
+    getInactiveStorage()?.removeItem(key);
+  },
+  removeItem: (key: string) => {
+    if (!hasWindow()) {
+      return;
+    }
+
+    window.localStorage.removeItem(key);
+    window.sessionStorage.removeItem(key);
+  },
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: authStorage,
     persistSession: true,
     autoRefreshToken: true,
   }

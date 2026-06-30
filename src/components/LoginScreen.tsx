@@ -2,7 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  getRememberLoginPreference,
+  setRememberLoginPreference,
+  supabase,
+} from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface LoginScreenProps {
@@ -14,6 +20,7 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [rememberLogin, setRememberLogin] = useState(() => getRememberLoginPreference());
   const { toast } = useToast();
 
   const handleAuth = async () => {
@@ -28,6 +35,8 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
 
     setIsLoading(true);
     try {
+      setRememberLoginPreference(rememberLogin);
+
       let result;
       
       if (isSignUp) {
@@ -101,6 +110,22 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {!isSignUp && (
+            <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
+              <div className="space-y-1">
+                <Label htmlFor="remember-login">Keep me logged in</Label>
+                <p className="text-xs text-muted-foreground">
+                  Preserve your login on this device.
+                </p>
+              </div>
+              <Checkbox
+                id="remember-login"
+                checked={rememberLogin}
+                onCheckedChange={(checked) => setRememberLogin(Boolean(checked))}
+                disabled={isLoading}
+              />
+            </div>
+          )}
           <Button 
             onClick={handleAuth} 
             className="w-full"

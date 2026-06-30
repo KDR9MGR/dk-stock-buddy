@@ -20,8 +20,8 @@
     "hash": "4837246019b4bbccb4712c682e27ee41"
   },
   "src/components/Bills.tsx": {
-    "mtime": 1779779012328.6921,
-    "hash": "a98a116078e3ed8b0cd6c1e969d02de1"
+    "mtime": 1782805159747.3318,
+    "hash": "e4399fe054641240b219f419ddd99612"
   },
   "src/components/BillsTest.tsx": {
     "mtime": 1779779012328.7883,
@@ -36,12 +36,12 @@
     "hash": "ae51c139198d134cff9a6f998a5cfd53"
   },
   "src/components/Dashboard.tsx": {
-    "mtime": 1782804415979.4644,
+    "mtime": 1782805159845.4678,
     "hash": "31f3411961795340454db775339fded5"
   },
   "src/components/LoginScreen.tsx": {
-    "mtime": 1779779012329.1677,
-    "hash": "baafe69169b59382be8b5ec681fbeaa6"
+    "mtime": 1782809479608.0298,
+    "hash": "cfbf090bda092b236d926e7f011c3194"
   },
   "src/components/ProductManagement.tsx": {
     "mtime": 1779779012329.3767,
@@ -256,16 +256,16 @@
     "hash": "bc4be55df07bc8727d5df9ed7799ad64"
   },
   "src/integrations/supabase/client.ts": {
-    "mtime": 1779779012334.1904,
-    "hash": "65c41924cbaf1d4d6cba8d3ccb7a5738"
+    "mtime": 1782809468697.3145,
+    "hash": "1ac217f64123d4e8830c3b9f7120a249"
   },
   "src/integrations/supabase/types.ts": {
     "mtime": 1779779012334.2764,
     "hash": "63e57ac2f2e13c67d6482e71af9970f4"
   },
   "src/lib/invoicePdf.ts": {
-    "mtime": 1779779012334.404,
-    "hash": "1b35c25b548546aa57a10e96b91dc6b1"
+    "mtime": 1782805159748.197,
+    "hash": "38117749a6f069cddf09ae7845abf2d7"
   },
   "src/lib/utils.ts": {
     "mtime": 1779779012334.4822,
@@ -288,8 +288,8 @@
     "hash": "0352474ba2918efe13895edbc3780d94"
   },
   "supabase/functions/extract-product-details/index.ts": {
-    "mtime": 1779779012335.081,
-    "hash": "abc14a5a54dba3fed54b0ab2bfc50c4e"
+    "mtime": 1782805159748.47,
+    "hash": "589661311c4846917ee5f25c0f30f81d"
   },
   "tailwind.config.ts": {
     "mtime": 1779779012335.1587,
@@ -330,5 +330,89 @@
   "public/placeholder.svg": {
     "mtime": 1779779012328.0671,
     "hash": "35707bd9960ba5281c72af927b79291f"
+  },
+  "src/.graphify/studio/assets/index-CU5cXRnL.js": {
+    "mtime": 1782805159836.4338,
+    "hash": "4a1731652aadc733229941e111688870"
+  },
+  ".graphify/GRAPH_REPORT.md": {
+    "mtime": 1782809367331.278,
+    "hash": "2af9b48c64902ba3b1c60f7116d3791f"
+  },
+  "exports/morning_ai_brief_2026-05-28.html": {
+    "mtime": 1782805159803.4712,
+    "hash": "b10bedff4ce86a9b420b0545583215e0"
+  },
+  "pnpm-lock.yaml": {
+    "mtime": 1782805159808.4624,
+    "hash": "0fd2e8fd8266e1d08bff5827fc0192eb"
+  },
+  "pnpm-workspace.yaml": {
+    "mtime": 1782759631000,
+    "hash": "2792794a974cba050afa7dbf64004444"
+  },
+  "src/.graphify/GRAPH_REPORT.md": {
+    "mtime": 1782805159811.9253,
+    "hash": "f756c800ebbe5c5a2ef93a42d4c36d1e"
+  },
+  "src/.graphify/description-instructions/batch-000.md": {
+    "mtime": 1782805159830.1487,
+    "hash": "bdfc9f599184a4e7ba31ffb19e955fba"
+  },
+  "src/.graphify/description-instructions/batch-001.md": {
+    "mtime": 1782805159830.5308,
+    "hash": "817eb9eaa402eb509e00925e0fc3ae8c"
+  },
+  "src/.graphify/description-instructions/batch-002.md": {
+    "mtime": 1782805159830.7705,
+    "hash": "87bb2b8b4d614c2f43c934cfb9ea1abf"
+  },
+  "src/.graphify/description-instructions/batch-003.md": {
+    "mtime": 1782805159831.0176,
+    "hash": "8a5a5906ee8ea8d07a3d7c1252d287b4"
+  },
+  "src/.graphify/description-instructions/batch-004.md": {
+    "mtime": 1782805159831.395,
+    "hash": "85a5d7f1bada441ad7aab4436b2553a4"
+  },
+  "src/.graphify/description-instructions/batch-005.md": {
+    "mtime": 1782805159831.7192,
+    "hash": "f6194ba58c19d29dfd560b4aada8f640"
+  },
+  "src/.graphify/description-instructions/batch-006.md": {
+    "mtime": 1782805159832.1033,
+    "hash": "c2dc69807b23a777b72e50274e08e09a"
+  },
+  "src/.graphify/description-instructions/batch-007.md": {
+    "mtime": 1782805159832.3472,
+    "hash": "f7db6eb6abcb5fca4b6af91c34c48e8e"
+  },
+  "src/.graphify/description-instructions/batch-008.md": {
+    "mtime": 1782805159832.5837,
+    "hash": "5c58cdb572a50c0da7ab0832a83532ec"
+  },
+  "src/.graphify/description-instructions/batch-009.md": {
+    "mtime": 1782805159832.792,
+    "hash": "9fedaeaca34d6d934f106b6b2846b92d"
+  },
+  "src/.graphify/label-instructions/communities.md": {
+    "mtime": 1782805159834.002,
+    "hash": "2e4b4a423d735407c3dfd53bdca3b189"
+  },
+  "src/.graphify/studio/index.html": {
+    "mtime": 1782805159838.5596,
+    "hash": "e0de6f474f81b1f12f740e284df72b38"
+  },
+  "src/.graphify/studio/studio-template.html": {
+    "mtime": 1782805159841.769,
+    "hash": "7c18608bfef6b2223ce0af585ad18e47"
+  },
+  "src/.graphify/studio/studio.html": {
+    "mtime": 1782805159844.1152,
+    "hash": "ed907ab50fe8b6bfdfc112476d4f17a3"
+  },
+  "exports/morning_ai_brief_2026-05-28.pdf": {
+    "mtime": 1782805159806.3848,
+    "hash": "8503396e8e9851a9342a106c4c6d1c06"
   }
 }
