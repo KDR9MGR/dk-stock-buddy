@@ -166,59 +166,35 @@ export const Dashboard = ({ onNavigate }: DashboardProps) => {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Products</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProducts}</div>
-          </CardContent>
-        </Card>
+        <div className="skeuo-card p-4">
+          <div className="skeuo-label mb-1">Total Products</div>
+          <div className="text-2xl font-bold skeuo-value">{stats.totalProducts}</div>
+        </div>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Low Stock</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{stats.lowStockCount}</div>
-          </CardContent>
-        </Card>
+        <div className="skeuo-card p-4">
+          <div className="skeuo-label mb-1">Low Stock</div>
+          <div className="text-2xl font-bold skeuo-value-destructive">{stats.lowStockCount}</div>
+        </div>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Brands</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.uniqueBrands}</div>
-          </CardContent>
-        </Card>
+        <div className="skeuo-card p-4">
+          <div className="skeuo-label mb-1">Brands</div>
+          <div className="text-2xl font-bold skeuo-value">{stats.uniqueBrands}</div>
+        </div>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Locations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.uniqueLocations}</div>
-          </CardContent>
-        </Card>
+        <div className="skeuo-card p-4">
+          <div className="skeuo-label mb-1">Locations</div>
+          <div className="text-2xl font-bold skeuo-value">{stats.uniqueLocations}</div>
+        </div>
 
-        <Card className="border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-blue-700 dark:text-blue-400">Bundle A</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{stats.bundleACount}</div>
-          </CardContent>
-        </Card>
+        <div className="skeuo-card skeuo-card-blue p-4">
+          <div className="skeuo-label mb-1" style={{ color: '#1976d2' }}>Bundle A</div>
+          <div className="text-2xl font-bold skeuo-value-blue">{stats.bundleACount}</div>
+        </div>
 
-        <Card className="border-green-500/50 bg-green-50/50 dark:bg-green-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-green-700 dark:text-green-400">Bundle B</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-700 dark:text-green-400">{stats.bundleBCount}</div>
-          </CardContent>
-        </Card>
+        <div className="skeuo-card skeuo-card-green p-4">
+          <div className="skeuo-label mb-1" style={{ color: '#388e3c' }}>Bundle B</div>
+          <div className="text-2xl font-bold skeuo-value-green">{stats.bundleBCount}</div>
+        </div>
       </div>
 
       {/* Brand Distribution Circular Bars */}

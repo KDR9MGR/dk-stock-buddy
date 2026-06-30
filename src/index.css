@@ -131,6 +131,143 @@ body {
   }
 }
 
+/* Skeuomorphic Card Styles */
+.skeuo-card {
+  background: linear-gradient(145deg, #f0f2f5, #e4e7eb);
+  border: none;
+  border-radius: 12px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 6px 12px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeuo-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+}
+
+.skeuo-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+.skeuo-card-dark {
+  background: linear-gradient(145deg, #2a2f3a, #1e2229);
+  border: none;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 6px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.skeuo-card-blue {
+  background: linear-gradient(145deg, #d4e9fc, #c0dcfa);
+  border: none;
+  box-shadow:
+    0 2px 4px rgba(33, 150, 243, 0.1),
+    0 6px 12px rgba(33, 150, 243, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(33, 150, 243, 0.06);
+}
+
+.skeuo-card-blue-dark {
+  background: linear-gradient(145deg, #1a3050, #0d1f30);
+  border: none;
+  box-shadow:
+    0 2px 4px rgba(66, 153, 225, 0.15),
+    0 6px 12px rgba(66, 153, 225, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(66, 153, 225, 0.12);
+}
+
+.skeuo-card-green {
+  background: linear-gradient(145deg, #d5ecd6, #c1e0c2);
+  border: none;
+  box-shadow:
+    0 2px 4px rgba(76, 175, 80, 0.1),
+    0 6px 12px rgba(76, 175, 80, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(76, 175, 80, 0.06);
+}
+
+.skeuo-card-green-dark {
+  background: linear-gradient(145deg, #1a351a, #0d250d);
+  border: none;
+  box-shadow:
+    0 2px 4px rgba(102, 187, 106, 0.15),
+    0 6px 12px rgba(102, 187, 106, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(102, 187, 106, 0.12);
+}
+
+.skeuo-label {
+  color: #6c757d;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.dark .skeuo-label {
+  color: #a0aec0;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.skeuo-value {
+  color: #212529;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .skeuo-value {
+  color: #f7fafc;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.skeuo-value-destructive {
+  color: #dc3545;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .skeuo-value-destructive {
+  color: #fc8181;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.skeuo-value-blue {
+  color: #1976d2;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .skeuo-value-blue {
+  color: #63b3ed;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
+.skeuo-value-green {
+  color: #388e3c;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .skeuo-value-green {
+  color: #68d391;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+}
+
 @layer base {
   * {
     @apply border-border;

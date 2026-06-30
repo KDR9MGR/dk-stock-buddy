@@ -1,0 +1,278 @@
+{
+  "App.tsx": {
+    "mtime": 1779779012328.3684,
+    "hash": "d322961e23d048f339c255cada96a041"
+  },
+  "components/AddStock.tsx": {
+    "mtime": 1779779012328.5117,
+    "hash": "4837246019b4bbccb4712c682e27ee41"
+  },
+  "components/Bills.tsx": {
+    "mtime": 1779779012328.6921,
+    "hash": "a98a116078e3ed8b0cd6c1e969d02de1"
+  },
+  "components/BillsTest.tsx": {
+    "mtime": 1779779012328.7883,
+    "hash": "37998d4a742662a4fa970b735437fdc8"
+  },
+  "components/BottomNav.tsx": {
+    "mtime": 1779779012328.855,
+    "hash": "2703beef5d4e1f41bb4e20345d4a9e0f"
+  },
+  "components/BundleManagement.tsx": {
+    "mtime": 1779779012328.9856,
+    "hash": "ae51c139198d134cff9a6f998a5cfd53"
+  },
+  "components/Dashboard.tsx": {
+    "mtime": 1779779012329.0994,
+    "hash": "4b5a6d1537e6acfbe296d9698869a06e"
+  },
+  "components/LoginScreen.tsx": {
+    "mtime": 1779779012329.1677,
+    "hash": "baafe69169b59382be8b5ec681fbeaa6"
+  },
+  "components/ProductManagement.tsx": {
+    "mtime": 1779779012329.3767,
+    "hash": "f93478bf381cdc194c51d08652a8a005"
+  },
+  "components/SearchScreen.tsx": {
+    "mtime": 1779779012329.5183,
+    "hash": "d585714aadcdee8113876be470b8083c"
+  },
+  "components/ui/accordion.tsx": {
+    "mtime": 1779779012329.6572,
+    "hash": "1543fc386d0aba4654f3199bf017eaab"
+  },
+  "components/ui/alert-dialog.tsx": {
+    "mtime": 1779779012329.7812,
+    "hash": "aca8996e4020285a789d58348abce552"
+  },
+  "components/ui/alert.tsx": {
+    "mtime": 1779779012329.8657,
+    "hash": "48dac79c18e0c3ff687c320c6fcf1590"
+  },
+  "components/ui/aspect-ratio.tsx": {
+    "mtime": 1779779012329.9412,
+    "hash": "ea9c6ff6c2931b5089972bfba3fa5c1f"
+  },
+  "components/ui/avatar.tsx": {
+    "mtime": 1779779012330.028,
+    "hash": "ce4fe60f4c48c01a5a601d9835648b40"
+  },
+  "components/ui/badge.tsx": {
+    "mtime": 1779779012330.118,
+    "hash": "f9c097d427c421f83eb92772a4b8ec06"
+  },
+  "components/ui/breadcrumb.tsx": {
+    "mtime": 1779779012330.2092,
+    "hash": "377763c80b5d08aa7748a2d532bb290e"
+  },
+  "components/ui/button.tsx": {
+    "mtime": 1779779012330.2932,
+    "hash": "33f8ef5c351115f8904b2a2f3decef54"
+  },
+  "components/ui/calendar.tsx": {
+    "mtime": 1779779012330.3672,
+    "hash": "577b2299d7782fffe974b558233dba3a"
+  },
+  "components/ui/card.tsx": {
+    "mtime": 1779779012330.4539,
+    "hash": "a8c37b8b2cb24a44f46cbae530c075af"
+  },
+  "components/ui/carousel.tsx": {
+    "mtime": 1779779012330.532,
+    "hash": "005a47594c5c8f09e27f0ed1f02197cd"
+  },
+  "components/ui/chart.tsx": {
+    "mtime": 1779779012330.817,
+    "hash": "8d4b13c80ec8ade9908712155bf0d117"
+  },
+  "components/ui/checkbox.tsx": {
+    "mtime": 1779779012330.905,
+    "hash": "ca06e9d95214f6c4b90a760098d21830"
+  },
+  "components/ui/collapsible.tsx": {
+    "mtime": 1779779012330.9814,
+    "hash": "8bcc61ee503a05663fb77ad9b7ec064a"
+  },
+  "components/ui/command.tsx": {
+    "mtime": 1779779012331.1604,
+    "hash": "a382e9f6c5d962b4f9d5b22badec69c5"
+  },
+  "components/ui/context-menu.tsx": {
+    "mtime": 1779779012331.2305,
+    "hash": "d4964b3b39ddf550f9b30c104e0080d8"
+  },
+  "components/ui/dialog.tsx": {
+    "mtime": 1779779012331.3113,
+    "hash": "3ca438e8db79dc5fa9fb4662372afadd"
+  },
+  "components/ui/drawer.tsx": {
+    "mtime": 1779779012331.3936,
+    "hash": "1caf6dac62a50b2558dd36d6d7644891"
+  },
+  "components/ui/dropdown-menu.tsx": {
+    "mtime": 1779779012331.487,
+    "hash": "cf7fe61c5c91eae0bdb3b3864508d48d"
+  },
+  "components/ui/form.tsx": {
+    "mtime": 1779779012331.5688,
+    "hash": "0ed732617aace88aa93d42fe438dd281"
+  },
+  "components/ui/hover-card.tsx": {
+    "mtime": 1779779012331.6467,
+    "hash": "004259115672f57e95da0b72ea2c613e"
+  },
+  "components/ui/input-otp.tsx": {
+    "mtime": 1779779012331.718,
+    "hash": "084089343296a7ebcb40fff14c62cb30"
+  },
+  "components/ui/input.tsx": {
+    "mtime": 1779779012331.7937,
+    "hash": "c7cbc8cd45d01649277bd7107581cb36"
+  },
+  "components/ui/label.tsx": {
+    "mtime": 1779779012331.8647,
+    "hash": "7ea839d3fa873fb063a9709a79e47561"
+  },
+  "components/ui/menubar.tsx": {
+    "mtime": 1779779012331.9666,
+    "hash": "a3a53eadb4e2d52cb841ebd2a910d33d"
+  },
+  "components/ui/navigation-menu.tsx": {
+    "mtime": 1779779012332.037,
+    "hash": "630417e56e3f5f9a5f323565ed86d430"
+  },
+  "components/ui/pagination.tsx": {
+    "mtime": 1779779012332.101,
+    "hash": "de159ac89490951ee82b4991f604e394"
+  },
+  "components/ui/popover.tsx": {
+    "mtime": 1779779012332.1694,
+    "hash": "b177b8aa44e03c0a5d2a9f00b11d55be"
+  },
+  "components/ui/progress.tsx": {
+    "mtime": 1779779012332.2378,
+    "hash": "9202867eacff0cb1b253a05d5d65bfc0"
+  },
+  "components/ui/radio-group.tsx": {
+    "mtime": 1779779012332.3086,
+    "hash": "3ace644678cd101153deee82d72048d9"
+  },
+  "components/ui/resizable.tsx": {
+    "mtime": 1779779012332.3782,
+    "hash": "cf5896bc9f1524c3f3fb2d4f24eb54bf"
+  },
+  "components/ui/scroll-area.tsx": {
+    "mtime": 1779779012332.4485,
+    "hash": "c4d63c56a99feb600ed0e9bbcfd70829"
+  },
+  "components/ui/select.tsx": {
+    "mtime": 1779779012332.5325,
+    "hash": "22886e4c5f841c13755088e26c7387e3"
+  },
+  "components/ui/separator.tsx": {
+    "mtime": 1779779012332.5994,
+    "hash": "e970901b62fe8b73d2b9254fad77f583"
+  },
+  "components/ui/sheet.tsx": {
+    "mtime": 1779779012332.6646,
+    "hash": "daa150998b6073011abdfc39df425359"
+  },
+  "components/ui/sidebar.tsx": {
+    "mtime": 1779779012332.7788,
+    "hash": "27c8db4816b123901768861c586f1cdb"
+  },
+  "components/ui/skeleton.tsx": {
+    "mtime": 1779779012332.8457,
+    "hash": "a5a4d6d5551d4c7feb8176a23e7eb07c"
+  },
+  "components/ui/slider.tsx": {
+    "mtime": 1779779012332.9148,
+    "hash": "ccbb4f4470af296eafa94f9972e8a4f9"
+  },
+  "components/ui/sonner.tsx": {
+    "mtime": 1779779012332.9824,
+    "hash": "5cc4d43770ff3cffb5ba65d5ea3ee26d"
+  },
+  "components/ui/switch.tsx": {
+    "mtime": 1779779012333.059,
+    "hash": "1210b13831d433e8a9488bab91432dd4"
+  },
+  "components/ui/table.tsx": {
+    "mtime": 1779779012333.131,
+    "hash": "efdbaeb9710b2f60de7c0e18bd4e3528"
+  },
+  "components/ui/tabs.tsx": {
+    "mtime": 1779779012333.2007,
+    "hash": "edad06f905be7a7e3634fdbe1b6ad61a"
+  },
+  "components/ui/textarea.tsx": {
+    "mtime": 1779779012333.2676,
+    "hash": "b79413adc1ab8235458554cf0e25d7fd"
+  },
+  "components/ui/toast.tsx": {
+    "mtime": 1779779012333.4292,
+    "hash": "6b9ed7f669208f6631d1c44bbd556877"
+  },
+  "components/ui/toaster.tsx": {
+    "mtime": 1779779012333.5017,
+    "hash": "d0e062810c47a46b9bb4e8ea19875a02"
+  },
+  "components/ui/toggle-group.tsx": {
+    "mtime": 1779779012333.5735,
+    "hash": "6338f2936a2474998e1e546c6a1664a6"
+  },
+  "components/ui/toggle.tsx": {
+    "mtime": 1779779012333.6516,
+    "hash": "5840a6d0f51ab73d9f40592fd0db4899"
+  },
+  "components/ui/tooltip.tsx": {
+    "mtime": 1779779012333.7239,
+    "hash": "336ca01a98037c9a1dfe936bde3ee549"
+  },
+  "components/ui/use-toast.ts": {
+    "mtime": 1779779012333.7856,
+    "hash": "4f094014a1315ca1081cbdc7f78d55cc"
+  },
+  "hooks/use-mobile.tsx": {
+    "mtime": 1779779012333.8901,
+    "hash": "209b5193af16624cdd89d3591480dd48"
+  },
+  "hooks/use-toast.ts": {
+    "mtime": 1779779012333.96,
+    "hash": "bc4be55df07bc8727d5df9ed7799ad64"
+  },
+  "integrations/supabase/client.ts": {
+    "mtime": 1779779012334.1904,
+    "hash": "65c41924cbaf1d4d6cba8d3ccb7a5738"
+  },
+  "integrations/supabase/types.ts": {
+    "mtime": 1779779012334.2764,
+    "hash": "63e57ac2f2e13c67d6482e71af9970f4"
+  },
+  "lib/invoicePdf.ts": {
+    "mtime": 1779779012334.404,
+    "hash": "1b35c25b548546aa57a10e96b91dc6b1"
+  },
+  "lib/utils.ts": {
+    "mtime": 1779779012334.4822,
+    "hash": "43cf18f6ce510a42a86c56be57eadd99"
+  },
+  "main.tsx": {
+    "mtime": 1779779012334.554,
+    "hash": "15da54e39d48ef50de2df869b054c181"
+  },
+  "pages/Index.tsx": {
+    "mtime": 1779779012334.6792,
+    "hash": "553876dc88315e84e28d21a1df2d73d1"
+  },
+  "pages/NotFound.tsx": {
+    "mtime": 1779779012334.7522,
+    "hash": "7f6f4e93331684fdf5a149fdf712cb80"
+  },
+  "vite-env.d.ts": {
+    "mtime": 1779779012334.817,
+    "hash": "0352474ba2918efe13895edbc3780d94"
+  }
+}
