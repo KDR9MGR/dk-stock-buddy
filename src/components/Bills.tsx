@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { createInvoicePdfFile, downloadInvoicePdf } from "@/lib/invoicePdf";
+import { createInvoicePdfFile, downloadInvoicePdf, downloadInvoicePdfFile } from "@/lib/invoicePdf";
 
 interface Product {
   id: string;
@@ -283,9 +283,6 @@ export const Bills = () => {
           alert("Please enter a valid customer phone number");
           return;
         }
-
-        window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer");
-        return;
       }
 
       const pdfFile = await createInvoicePdfFile(getInvoicePdfData());
@@ -296,8 +293,15 @@ export const Bills = () => {
           text: shareText,
           files: [pdfFile],
         });
+        return;
+      }
+
+      downloadInvoicePdfFile(pdfFile);
+
+      if (shareWithCustomerDirectly) {
+        window.open(`https://wa.me/${phoneNumber}?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer");
+        alert("Invoice PDF downloaded. Attach the downloaded PDF in the WhatsApp chat that just opened.");
       } else {
-        await downloadInvoicePdf(getInvoicePdfData());
         alert("PDF downloaded. Attach it in WhatsApp to share the invoice.");
       }
 
@@ -603,7 +607,7 @@ export const Bills = () => {
                   <Label htmlFor="directCustomerShare" className="font-medium">
                     Send to customer number
                   </Label>
-                  <p className="text-xs text-muted-foreground">On opens WhatsApp directly. Off shares the PDF from the system share sheet.</p>
+                  <p className="text-xs text-muted-foreground">Shares the invoice PDF when supported. If file sharing is unavailable, the PDF downloads and the customer chat opens.</p>
                 </div>
                 <Switch id="directCustomerShare" checked={shareWithCustomerDirectly} onCheckedChange={setShareWithCustomerDirectly} />
               </div>
@@ -616,7 +620,7 @@ export const Bills = () => {
                 disabled={!billData.customerName || billData.products.length === 0 || (shareWithCustomerDirectly && !billData.customerPhone)}
               >
                 <Phone className="mr-2 h-4 w-4" />
-                {shareWithCustomerDirectly ? "Open WhatsApp" : "Share PDF"}
+                Share PDF
               </Button>
               <Button onClick={saveInvoicePdf} variant="outline" disabled={billData.products.length === 0}>
                 <FileText className="mr-2 h-4 w-4" />

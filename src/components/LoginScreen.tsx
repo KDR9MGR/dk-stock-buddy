@@ -10,9 +10,10 @@ import {
   supabase,
 } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from "@supabase/supabase-js";
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (user: User) => void;
 }
 
 export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
@@ -73,7 +74,7 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
             title: "Success",
             description: isSignUp ? "Account created successfully!" : "Logged in successfully!",
           });
-          onLogin();
+          onLogin(data.user);
         }
       }
     } catch (error) {

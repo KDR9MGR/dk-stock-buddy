@@ -4,6 +4,16 @@ import type { Database } from './types';
 
 const SUPABASE_URL = "https://hmgtsqsfzbybdlxuytgw.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtZ3RzcXNmemJ5YmRseHV5dGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNjQzNjQsImV4cCI6MjA3MTk0MDM2NH0.wldueS_roypg-g9BstCxH9FjPZ61xgRUB8WpzbaZxIw";
+const SUPABASE_AUTH_STORAGE_KEY = "dk-stock-buddy-auth";
+const LEGACY_AUTH_STORAGE_KEY = "sb-hmgtsqsfzbybdlxuytgw-auth-token";
+const browserStorage = typeof window !== "undefined" ? window.localStorage : undefined;
+
+if (browserStorage && !browserStorage.getItem(SUPABASE_AUTH_STORAGE_KEY)) {
+  const legacySession = browserStorage.getItem(LEGACY_AUTH_STORAGE_KEY);
+  if (legacySession) {
+    browserStorage.setItem(SUPABASE_AUTH_STORAGE_KEY, legacySession);
+  }
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -42,7 +52,11 @@ const moveSupabaseSessionEntries = (source: Storage, target: Storage) => {
 
   for (let index = 0; index < source.length; index += 1) {
     const key = source.key(index);
-    if (key?.startsWith(SUPABASE_STORAGE_PREFIX)) {
+    if (
+      key === SUPABASE_AUTH_STORAGE_KEY ||
+      key === LEGACY_AUTH_STORAGE_KEY ||
+      key?.startsWith(SUPABASE_STORAGE_PREFIX)
+    ) {
       keysToMove.push(key);
     }
   }
@@ -102,7 +116,9 @@ const authStorage = {
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: authStorage,
+    storageKey: SUPABASE_AUTH_STORAGE_KEY,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
   }
 });

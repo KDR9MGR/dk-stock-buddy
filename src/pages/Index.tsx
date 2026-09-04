@@ -49,7 +49,7 @@ const Index = () => {
   }
 
   if (!user) {
-    return <LoginScreen onLogin={() => {}} />;
+    return <LoginScreen onLogin={setUser} />;
   }
 
   const renderActiveScreen = () => {

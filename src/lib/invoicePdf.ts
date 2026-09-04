@@ -226,6 +226,10 @@ export const createInvoicePdfFile = async (invoice: InvoicePdfData) => {
 
 export const downloadInvoicePdf = async (invoice: InvoicePdfData) => {
   const file = await createInvoicePdfFile(invoice);
+  downloadInvoicePdfFile(file);
+};
+
+export const downloadInvoicePdfFile = (file: File) => {
   const url = URL.createObjectURL(file);
   const link = document.createElement("a");
   link.href = url;
