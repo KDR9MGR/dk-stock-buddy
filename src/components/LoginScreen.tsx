@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import {
   getRememberLoginPreference,
   setRememberLoginPreference,
@@ -114,7 +113,9 @@ export const LoginScreen = ({ onLogin }: LoginScreenProps) => {
           {!isSignUp && (
             <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
               <div className="space-y-1">
-                <Label htmlFor="remember-login">Keep me logged in</Label>
+                <label htmlFor="remember-login" className="text-sm font-medium leading-none">
+                  Keep me logged in
+                </label>
                 <p className="text-xs text-muted-foreground">
                   Preserve your login on this device.
                 </p>

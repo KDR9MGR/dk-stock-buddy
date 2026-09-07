@@ -20,7 +20,17 @@ const Index = () => {
     // Check current session
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      if (!session) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const {
+        data: { user: refreshedUser },
+      } = await supabase.auth.getUser();
+
+      setUser(refreshedUser ?? session.user);
       setIsLoading(false);
     };
 
@@ -29,7 +39,13 @@ const Index = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null);
+        if (event === "SIGNED_OUT" || !session) {
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
+        setUser(session.user);
         setIsLoading(false);
       }
     );
@@ -49,7 +65,13 @@ const Index = () => {
   }
 
   if (!user) {
-    return <LoginScreen onLogin={setUser} />;
+    return (
+      <LoginScreen
+        onLogin={(approvedUser) => {
+          setUser(approvedUser);
+        }}
+      />
+    );
   }
 
   const renderActiveScreen = () => {
